@@ -1,16 +1,11 @@
-<FrameLayout
+<RelativeLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/black"
     >
-    
-    <TextView 
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:textAppearance="?android:attr/textAppearanceMedium"
-        android:text="CAMERA"
-        />
-    
-    
-</FrameLayout>
+	<SurfaceView 
+	    android:layout_width="match_parent"
+	    android:layout_height="match_parent"
+	    android:id="@+id/capture_preview_surface"
+	    />
+</RelativeLayout>

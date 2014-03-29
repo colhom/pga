@@ -2,11 +2,11 @@ package com.repco.perfect.glassapp;
 
 import com.google.android.glass.timeline.LiveCard;
 import com.google.android.glass.timeline.TimelineManager;
-import com.google.android.glass.timeline.LiveCard.PublishMode;
 
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.media.MediaPlayer;
 import android.os.Binder;
 import android.os.IBinder;
 import android.widget.RemoteViews;
@@ -21,8 +21,10 @@ public class ClipService extends Service {
         super.onCreate();
         mTimelineManager = TimelineManager.from(this);
     }
-    
+    private MediaPlayer openDinkSound; 
+    private MediaPlayer closeDinkSound;
     public class ClipServiceBinder extends Binder{
+    
     	public void stop(){
     		ClipService.this.stopSelf();
     	}
@@ -33,9 +35,18 @@ public class ClipService extends Service {
             captureIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             getApplication().startActivity(captureIntent);
     	}
+    	
+    	public void openDink(){
+    		openDinkSound.start();
+    	}
+    	
+    	public void closeDink(){
+    		closeDinkSound.start();
+    	}
     }
     
     private final ClipServiceBinder mBinder = new ClipServiceBinder();
+    
     @Override
     public IBinder onBind(Intent intent) {
         return mBinder;
@@ -57,6 +68,12 @@ public class ClipService extends Service {
 
             mLiveCard.publish(LiveCard.PublishMode.SILENT);
         }
+        if (closeDinkSound == null){
+        	closeDinkSound = MediaPlayer.create(this, R.raw.fart);
+        }
+        if (openDinkSound == null){
+        	openDinkSound = MediaPlayer.create(this, R.raw.fart_open);
+        }
         mBinder.recordClip();
 
         return START_STICKY;
@@ -68,6 +85,12 @@ public class ClipService extends Service {
 
             mLiveCard.unpublish();
             mLiveCard = null;
+        }
+        if(openDinkSound != null){
+        	openDinkSound.release();
+        }
+        if(closeDinkSound != null){
+        	closeDinkSound.release();
         }
         super.onDestroy();
     }

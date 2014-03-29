@@ -22,13 +22,13 @@ public abstract class BaseBoundServiceActivity extends Activity {
 		public void onServiceConnected(ComponentName name, IBinder service) {
 			if(service instanceof ClipService.ClipServiceBinder){
 				mClipService = (ClipService.ClipServiceBinder) service;
-				openOptionsMenu();
+				onClipServiceConnected();
 			}
 		}
 	};
-	
+	protected abstract void onClipServiceConnected();
 	@Override
-	protected void onCreate(Bundle savedInstanceState) {
+	protected final void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		bindService(new Intent(this,ClipService.class), mServiceConnection, 0);
 	}

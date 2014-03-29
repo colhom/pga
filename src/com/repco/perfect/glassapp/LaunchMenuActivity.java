@@ -2,11 +2,6 @@ package com.repco.perfect.glassapp;
 
 import com.repco.perfect.glassapp.base.BaseBoundServiceActivity;
 
-import android.app.Activity;
-import android.content.ComponentName;
-import android.content.Intent;
-import android.content.ServiceConnection;
-import android.os.IBinder;
 import android.view.Menu;
 import android.view.MenuItem;
 
@@ -37,6 +32,10 @@ public class LaunchMenuActivity extends BaseBoundServiceActivity {
 		}
 		return true;
 	
+	}
+	@Override
+	protected void onClipServiceConnected() {
+		openOptionsMenu();
 	}
 }
   
