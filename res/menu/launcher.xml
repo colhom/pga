@@ -1,0 +1,10 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <item
+        android:id="@+id/record_clip_item"
+        android:title="@string/record_clip_text"/>
+    <item
+        android:id="@+id/stop_service_item"
+        android:title="@string/stop_service_text"/>
+
+</menu>
