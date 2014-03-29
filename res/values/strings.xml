@@ -1,7 +1,7 @@
 <resources>
 
     <string name="app_name">PerfectGlassApp</string>
-    <string name="perfect_voice_hook">record a clip</string>
+    <string name="perfect_voice_hook">add to trailer</string>
     <string name="record_clip_text">Record a Clip</string>
     <string name="stop_service_text">Close</string>
 </resources>

@@ -10,8 +10,6 @@ import com.repco.perfect.glassapp.base.BaseBoundServiceActivity;
 import android.annotation.SuppressLint;
 import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
-import android.media.MediaRecorder.OutputFormat;
-import android.os.Bundle;
 import android.os.Environment;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -35,7 +33,7 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 	protected void onDestroy() {
 		super.onDestroy();
 		destroyRecorder();
-		abortClip();
+		mClipService.abortClip(outputPath);
 	}
 
 	private void destroyRecorder(){
@@ -45,20 +43,13 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 			mRec = null;
 		}
 	}
-	private void abortClip(){
-		File f = new File(outputPath);
-		f.delete();
-	}
-	
-	private void saveClip(){
-		mClipService.closeDink();
-	}
+
 	@Override
 	public void onInfo(MediaRecorder mr, int what, int extra) {
 		switch (what) {
 		case MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED:
 			destroyRecorder();
-			saveClip();
+			mClipService.saveClip(outputPath);
 			finish();
 			break;
 		}
@@ -86,8 +77,6 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 		
 
 		mRec.start();
-		mClipService.openDink();
-		
 	}
 
 

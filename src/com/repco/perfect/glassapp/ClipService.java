@@ -1,5 +1,7 @@
 package com.repco.perfect.glassapp;
 
+import java.io.File;
+
 import com.google.android.glass.timeline.LiveCard;
 import com.google.android.glass.timeline.TimelineManager;
 
@@ -29,18 +31,20 @@ public class ClipService extends Service {
     		ClipService.this.stopSelf();
     	}
     	
-    	public void recordClip(){
-    		
+    	public void recordClip(){	
     		Intent captureIntent = new Intent(ClipService.this,ClipCaptureActivity.class);
             captureIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             getApplication().startActivity(captureIntent);
+            openDinkSound.start();
     	}
     	
-    	public void openDink(){
-    		openDinkSound.start();
+    	public void abortClip(String outputPath){
+    		File f = new File(outputPath);
+    		f.delete();
+    		closeDinkSound.start();
     	}
     	
-    	public void closeDink(){
+    	public void saveClip(String outputPath){
     		closeDinkSound.start();
     	}
     }
