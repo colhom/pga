@@ -34,24 +34,6 @@ public class ClipService extends Service {
 	public void onCreate() {
 		super.onCreate();
 		mTimelineManager = TimelineManager.from(this);
-		for (int retry = 0; retry < 20; retry++) {
-			try {
-				System.out.println("Camera attempt #" + retry);
-				mCamera = Camera.open(); // attempt to get a Camera instance
-			} catch (Exception e) {
-				System.err.println(e);
-				try {
-					Thread.sleep(250);
-				} catch (InterruptedException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
-				}
-			}
-		}
-
-		if (mCamera == null) {
-			throw new RuntimeException("Couldn't get camera service");
-		}
 	}
 
 	private AudioManager am;
@@ -63,18 +45,34 @@ public class ClipService extends Service {
 		}
 
 		public void recordClip() {
-			try {
-				mCamera.reconnect();
-			} catch (IOException e) {
-				throw new RuntimeException(e);
+			for (int retry = 0; retry < 20; retry++) {
+				try {
+					System.out.println("Camera attempt #" + retry);
+					mCamera = Camera.open(); // attempt to get a Camera instance
+				} catch (Exception e) {
+					System.err.println(e);
+					try {
+						Thread.sleep(250);
+					} catch (InterruptedException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					}
+					continue;
+				}
+				break;
 			}
-			try {
-				mCamera.setPreviewDisplay(null);
-			} catch (java.io.IOException ioe) {
-				System.err.println("IOException nullifying preview display: "
-						+ ioe.getMessage());
+
+			if (mCamera == null) {
+				throw new RuntimeException("Couldn't get camera service");
 			}
-			mCamera.stopPreview();
+
+//			mCamera.lock();
+//			try {
+//				mCamera.setPreviewDisplay(null);
+//			} catch (IOException e) {
+//				e.printStackTrace();
+//			}
+//			mCamera.stopPreview();
 			mCamera.unlock();
 
 			mRec = new MediaRecorder();
@@ -110,15 +108,21 @@ public class ClipService extends Service {
 		}
 
 		public void destroyRecorder() {
+			System.out.println("DestroyRecorder: " + mRec + " : " + mCamera);
 			if (mRec != null) {
 				try {
 					mRec.stop();
 					mRec.reset();
 					mRec.release();
-				} finally {					
+				} finally {
 					mRec = null;
-					mCamera.unlock();
 				}
+			}
+			if (mCamera != null){
+				mCamera.lock();
+				mCamera.stopPreview();
+				mCamera.release();
+				mCamera = null;
 			}
 		}
 	}
