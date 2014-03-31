@@ -1,6 +1,13 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android" >
-	<item
-	    android:id="@+id/capture_cancel"
-	    android:title="@string/cancel_capture_text"
-	     />
+
+    <item
+        android:id="@+id/keep_clip_mi"
+        android:title="@string/keep_clip_mi_text"/>
+    <item
+        android:id="@+id/replay_clip_mi"
+        android:title="@string/replay_clip_mi_text"/>
+    <item
+        android:id="@+id/discard_clip_mi"
+        android:title="@string/discard_clip_mi_text"/>
+
 </menu>

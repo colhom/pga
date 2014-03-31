@@ -1,28 +1,35 @@
 package com.repco.perfect.glassapp;
 
 import java.io.File;
-import java.io.IOException;
-import java.math.BigInteger;
-import java.security.SecureRandom;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.text.DateFormat;
+import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
 
 import com.google.android.glass.app.Card;
-import com.google.android.glass.media.Sounds;
+import com.google.android.glass.app.Card.ImageLayout;
 import com.google.android.glass.timeline.LiveCard;
+import com.google.android.glass.timeline.LiveCard.PublishMode;
 import com.google.android.glass.timeline.TimelineManager;
 
-import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.Bitmap.CompressFormat;
+import android.graphics.Point;
 import android.hardware.Camera;
-import android.media.AudioManager;
 import android.media.CamcorderProfile;
-import android.media.MediaPlayer;
 import android.media.MediaRecorder;
+import android.net.Uri;
 import android.os.Binder;
 import android.os.Environment;
 import android.os.IBinder;
+import android.view.Display;
+import android.view.WindowManager;
 import android.widget.RemoteViews;
 
 public class ClipService extends Service {
@@ -35,8 +42,6 @@ public class ClipService extends Service {
 		super.onCreate();
 		mTimelineManager = TimelineManager.from(this);
 	}
-
-	private AudioManager am;
 
 	public class ClipServiceBinder extends Binder {
 
@@ -52,7 +57,7 @@ public class ClipService extends Service {
 				} catch (Exception e) {
 					System.err.println(e);
 					try {
-						Thread.sleep(250);
+						Thread.sleep(60);
 					} catch (InterruptedException e1) {
 						// TODO Auto-generated catch block
 						e1.printStackTrace();
@@ -65,14 +70,6 @@ public class ClipService extends Service {
 			if (mCamera == null) {
 				throw new RuntimeException("Couldn't get camera service");
 			}
-
-//			mCamera.lock();
-//			try {
-//				mCamera.setPreviewDisplay(null);
-//			} catch (IOException e) {
-//				e.printStackTrace();
-//			}
-//			mCamera.stopPreview();
 			mCamera.unlock();
 
 			mRec = new MediaRecorder();
@@ -86,47 +83,88 @@ public class ClipService extends Service {
 			captureIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
 					| Intent.FLAG_ACTIVITY_CLEAR_TASK);
 			getApplication().startActivity(captureIntent);
-			am.playSoundEffect(Sounds.SELECTED);
+		}
+ 
+		private Long mCardId = null;
+		private static final int MAX_IMG = 4;
+		
+
+		public void saveClip(String outputPath, Bitmap rawPreview) {
+			try {
+				File previewFile = new File(outputPath + ".thumb.jpg");
+				
+				Display display = ((WindowManager)getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
+				Point size = new Point();
+				display.getSize(size);
+				
+				Bitmap preview = Bitmap.createScaledBitmap(rawPreview, size.x, size.y, true);
+				
+				preview.compress(CompressFormat.JPEG, 50, new FileOutputStream(
+						previewFile));
+				Date now = new Date();
+				
+				//TODO: upload queue
+				
+				Card card; 
+				if(mCardId == null){
+					card = new Card(getBaseContext());
+					card.addImage(Uri.fromFile(previewFile)).setImageLayout(ImageLayout.FULL);
+					card.setFootnote(DateFormat.getDateTimeInstance().format(now));
+					mCardId = mTimelineManager.insert(card);
+				}else{
+				
+					card = mTimelineManager.query(mCardId);
+					card.setFootnote(DateFormat.getDateTimeInstance().format(now));
+					List<Uri> images = new LinkedList<Uri>();
+					
+					images.add(Uri.fromFile(previewFile));
+					for(int i = 0; (i < card.getImageCount() && i < MAX_IMG-1);i++){
+						images.add(card.getImage(i));
+					}
+					card.clearImages();
+					for(Uri image : images){
+						card.addImage(image);
+					}
+					mTimelineManager.update(mCardId, card);
+				}
+				mVidCount++;
+				updateDash();
+
+			} catch (FileNotFoundException e) {
+				throw new RuntimeException(e);
+			}
 		}
 
 		public MediaRecorder getMediaRecorder() {
 			return mRec;
 		}
 
-		public void abortClip(String outputPath) {
-			try {
-				File f = new File(outputPath);
-				f.delete();
-			} finally {
-				destroyRecorder();
-			}
-		}
-
-		public void saveClip(String outputPath) {
-			am.playSoundEffect(Sounds.SUCCESS);
-			destroyRecorder();
-		}
-
 		public void destroyRecorder() {
 			System.out.println("DestroyRecorder: " + mRec + " : " + mCamera);
-			if (mRec != null) {
-				try {
-					mRec.stop();
-					mRec.reset();
-					mRec.release();
-				} finally {
-					mRec = null;
+			try {
+				if (mRec != null) {
+						mRec.stop();
+						mRec.release();
+						mRec = null;
 				}
-			}
-			if (mCamera != null){
-				mCamera.lock();
-				mCamera.stopPreview();
-				mCamera.release();
-				mCamera = null;
+			} finally {
+				if (mCamera != null) {
+					mCamera.release();
+					mCamera = null;
+				}
 			}
 		}
 	}
-
+	//TODO: make real
+	private int mVidCount = 0;
+	private void updateDash(){
+		if(mLiveCard.isPublished()){
+			mLiveCard.unpublish();
+		}
+		mDashView.setTextViewText(R.id.dash_main, mVidCount+" clips taken");
+		mLiveCard.setViews(mDashView);
+		mLiveCard.publish(PublishMode.SILENT);
+	}
 	private final ClipServiceBinder mBinder = new ClipServiceBinder();
 
 	@Override
@@ -139,26 +177,25 @@ public class ClipService extends Service {
 
 	private MediaRecorder mRec;
 	private Camera mCamera = null;
-
+	private RemoteViews mDashView = null;
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 
 		if (mLiveCard == null) {
 			mLiveCard = mTimelineManager.createLiveCard("perfect");
 
 			mLiveCard.setDirectRenderingEnabled(false);
 
-			mLiveCard
-					.setViews(new RemoteViews(getPackageName(), R.layout.dash));
+			mDashView = new RemoteViews(getPackageName(), R.layout.dash);
+			mLiveCard.setViews(mDashView);
 
 			Intent menuIntent = new Intent(this, LaunchMenuActivity.class);
 			menuIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
 					| Intent.FLAG_ACTIVITY_CLEAR_TASK);
 			mLiveCard.setAction(PendingIntent.getActivity(this, 0, menuIntent,
 					0));
-
-			mLiveCard.publish(LiveCard.PublishMode.SILENT);
+			
+			updateDash();
 		}
 		if (!clipRoot.exists()) {
 			if (!clipRoot.mkdir()) {
@@ -173,12 +210,12 @@ public class ClipService extends Service {
 
 	@Override
 	public void onDestroy() {
+		mBinder.destroyRecorder();
 		if (mLiveCard != null && mLiveCard.isPublished()) {
 
 			mLiveCard.unpublish();
 			mLiveCard = null;
 		}
-		mBinder.destroyRecorder();
 		super.onDestroy();
 	}
 
