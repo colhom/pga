@@ -9,14 +9,17 @@ import com.repco.perfect.glassapp.base.BaseBoundServiceActivity;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.media.ThumbnailUtils;
 import android.net.Uri;
+import android.provider.MediaStore;
 import android.provider.MediaStore.Video.Thumbnails;
 
+import com.google.android.glass.media.CameraManager;
 import com.google.android.glass.media.Sounds;
 import com.google.android.glass.touchpad.Gesture;
 import com.google.android.glass.touchpad.GestureDetector;
@@ -29,20 +32,13 @@ import android.view.SurfaceView;
 import android.view.WindowManager;
 import android.widget.ImageView;
 
-public class ClipCaptureActivity extends BaseBoundServiceActivity implements
-		MediaRecorder.OnInfoListener, 
-		MediaRecorder.OnErrorListener,
-		SurfaceHolder.Callback {
+public class ClipCaptureActivity extends BaseBoundServiceActivity {
 
-	
-
-	
 	private AudioManager am;
 
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
-		mClipService.destroyRecorder();
 		if(!mStateDone){
 			File f = new File(outputPath);
 			f.delete();
@@ -55,25 +51,7 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 	String outputPath = ClipService.clipRoot.getAbsolutePath() + "/"
 			+ new BigInteger(130, rand).toString(32) + ".mp4";
 
-	
-	private Bitmap mPreview;
-	private ImageView mPreviewView;
 	private boolean mStateDone = false;
-	@Override
-	public void onInfo(MediaRecorder mr, int what, int extra) {
-		switch (what) {
-		case MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED:
-			mClipService.destroyRecorder();
-			mPreview = ThumbnailUtils.createVideoThumbnail(outputPath, Thumbnails.FULL_SCREEN_KIND);
-			mPreviewView = new ImageView(this);
-			mPreviewView.setImageBitmap(mPreview);
-			setContentView(mPreviewView);
-			openOptionsMenu();
-			am.playSoundEffect(Sounds.SUCCESS);
-			break;
-		}
-
-	}
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
@@ -86,35 +64,9 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch(item.getItemId()){
 		case R.id.keep_clip_mi:
-			mClipService.saveClip(outputPath, mPreview);
 			finish();
 			break;
 		case R.id.replay_clip_mi:
-			final SurfaceView previewSurface = new SurfaceView(this);
-			previewSurface.getHolder().addCallback(new SurfaceHolder.Callback() {
-				
-				@Override
-				public void surfaceDestroyed(SurfaceHolder holder) {}
-				
-				@Override
-				public void surfaceCreated(SurfaceHolder holder) {
-					MediaPlayer mp = MediaPlayer.create(ClipCaptureActivity.this, Uri.fromFile(new File(outputPath)), previewSurface.getHolder());
-					mp.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-						@Override
-						public void onCompletion(MediaPlayer mp) {
-							setContentView(mPreviewView);
-							openOptionsMenu();
-						}
-					});
-					mp.start();
-				}
-				
-				@Override
-				public void surfaceChanged(SurfaceHolder holder, int format, int width,
-						int height) {}
-			});
-			setContentView(previewSurface);
-
 			break;
 		case R.id.discard_clip_mi:
 			finish();
@@ -125,55 +77,49 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 		am.playSoundEffect(Sounds.SELECTED);
 		return true;
 	}
-	@Override
-	public void surfaceChanged(SurfaceHolder holder, int format, int width,
-			int height) {
+	private static final int RECORD_VIDEO_REQUEST = 1;
+	
+	private void recordVideo(){
+		Intent intent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
+		intent.putExtra(MediaStore.EXTRA_DURATION_LIMIT, 3);
+		startActivityForResult(intent, RECORD_VIDEO_REQUEST);
 	}
-
+	
 	@Override
-	public void surfaceCreated(SurfaceHolder holder) {
-
-		try {
-			mRec.prepare();
-		} catch (IllegalStateException e) {
-			e.printStackTrace();
-			throw new RuntimeException(e);
-		} catch (IOException e) {
-			e.printStackTrace();
-			throw new RuntimeException(e);
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		if(requestCode == RECORD_VIDEO_REQUEST && resultCode == RESULT_OK){
+			String path = data.getStringExtra(CameraManager.EXTRA_VIDEO_FILE_PATH);
+			System.out.println("output: "+path);
+			if(!new File(path).delete()){
+				System.err.println("Could not delete "+path);
+			}
+			openOptionsMenu();
 		}
-
-		mRec.start();
 	}
+
 
 	@Override
-	public void surfaceDestroyed(SurfaceHolder holder) {
+	protected void onStart() {
+		super.onStart();
+		recordVideo();
 	}
-
-	private MediaRecorder mRec;
 	@Override
 	protected void onClipServiceConnected() {
 		//TODO: loading screen
 		
-		am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-		SurfaceView previewSurface = new SurfaceView(this);
-		mRec = mClipService.getMediaRecorder();
-		mRec.setMaxDuration(4000);
-		mRec.setOutputFile(outputPath);
-		mRec.setPreviewDisplay(previewSurface.getHolder().getSurface());
-		mRec.setOnInfoListener(this);
-		am.playSoundEffect(Sounds.SELECTED);
-		
-
-		previewSurface.getHolder().addCallback(this);
-		setContentView(previewSurface);
-		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+//		am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+//		SurfaceView previewSurface = new SurfaceView(this);
+//		mRec = mClipService.getMediaRecorder();
+//		mRec.setMaxDuration(4000);
+//		mRec.setOutputFile(outputPath);
+//		mRec.setPreviewDisplay(previewSurface.getHolder().getSurface());
+//		mRec.setOnInfoListener(this);
+//		am.playSoundEffect(Sounds.SELECTED);
+//		
+//
+//		previewSurface.getHolder().addCallback(this);
+//		setContentView(previewSurface);
+//		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 	}
 
-
-	@Override
-	public void onError(MediaRecorder mr, int what, int extra) {
-		System.err.println("MediaRecorder onError: "+what+" "+extra);
-		finish();
-	}
 }

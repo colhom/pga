@@ -1,7 +1,12 @@
 package com.repco.perfect.glassapp;
 
+import java.io.File;
+
+import com.google.android.glass.media.CameraManager;
 import com.repco.perfect.glassapp.base.BaseBoundServiceActivity;
 
+import android.content.Intent;
+import android.provider.MediaStore;
 import android.view.Menu;
 import android.view.MenuItem;
 
@@ -22,10 +27,10 @@ public class LaunchMenuActivity extends BaseBoundServiceActivity {
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch(item.getItemId()){
 		case R.id.record_clip_item:
-			mClipService.recordClip();
 			break;
 		case R.id.stop_service_item:
-			mClipService.stop();
+			mClipService.kill();
+			finish();
 			break;
 		default:
 			return false;
@@ -33,9 +38,13 @@ public class LaunchMenuActivity extends BaseBoundServiceActivity {
 		return true;
 	
 	}
+
 	@Override
-	protected void onClipServiceConnected() {
+	public void onAttachedToWindow() {
+		super.onAttachedToWindow();
 		openOptionsMenu();
 	}
+	@Override
+	protected void onClipServiceConnected() {}
 }
   
