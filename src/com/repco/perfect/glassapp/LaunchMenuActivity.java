@@ -34,8 +34,14 @@ public class LaunchMenuActivity extends BaseBoundServiceActivity {
 	
 	}
 	@Override
-	protected void onClipServiceConnected() {
+	public void onAttachedToWindow() {
+		super.onAttachedToWindow();
 		openOptionsMenu();
+	}
+	@Override
+	protected void onClipServiceConnected() {
+		// TODO Auto-generated method stub
+		
 	}
 }
   

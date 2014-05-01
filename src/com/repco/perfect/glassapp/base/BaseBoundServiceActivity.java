@@ -15,7 +15,7 @@ public abstract class BaseBoundServiceActivity extends Activity {
 		
 		@Override
 		public void onServiceDisconnected(ComponentName arg0) {
-			finish();
+
 		}
 		
 		@Override
@@ -28,14 +28,17 @@ public abstract class BaseBoundServiceActivity extends Activity {
 	};
 	protected abstract void onClipServiceConnected();
 	@Override
-	protected final void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		bindService(new Intent(this,ClipService.class), mServiceConnection, 0);
+	protected void onStart() {
+		super.onStart();
+		if(!bindService(new Intent(this,ClipService.class), mServiceConnection, 0)){
+			throw new RuntimeException("Couldn't bind to ClipService");
+		}
 	}
 	
 	@Override
-	protected void onDestroy() {
-		super.onDestroy();
+	protected void onStop() {
+		super.onStop();
 		unbindService(mServiceConnection);
+		finish();
 	}
 }

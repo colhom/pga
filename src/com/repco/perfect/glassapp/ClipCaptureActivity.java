@@ -40,8 +40,8 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 	private AudioManager am;
 
 	@Override
-	protected void onDestroy() {
-		super.onDestroy();
+	protected void onStop() {
+		super.onStop();
 		mClipService.destroyRecorder();
 		if(!mStateDone){
 			File f = new File(outputPath);

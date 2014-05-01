@@ -12,7 +12,6 @@ import com.google.android.glass.app.Card;
 import com.google.android.glass.app.Card.ImageLayout;
 import com.google.android.glass.timeline.LiveCard;
 import com.google.android.glass.timeline.LiveCard.PublishMode;
-import com.google.android.glass.timeline.TimelineManager;
 
 import android.app.PendingIntent;
 import android.app.Service;
@@ -34,13 +33,11 @@ import android.widget.RemoteViews;
 
 public class ClipService extends Service {
 
-	private TimelineManager mTimelineManager;
 	private LiveCard mLiveCard;
 
 	@Override
 	public void onCreate() {
 		super.onCreate();
-		mTimelineManager = TimelineManager.from(this);
 	}
 
 	public class ClipServiceBinder extends Binder {
@@ -104,29 +101,7 @@ public class ClipService extends Service {
 				Date now = new Date();
 				
 				//TODO: upload queue
-				
-				Card card; 
-				if(mCardId == null){
-					card = new Card(getBaseContext());
-					card.addImage(Uri.fromFile(previewFile)).setImageLayout(ImageLayout.FULL);
-					card.setFootnote(DateFormat.getDateTimeInstance().format(now));
-					mCardId = mTimelineManager.insert(card);
-				}else{
-				
-					card = mTimelineManager.query(mCardId);
-					card.setFootnote(DateFormat.getDateTimeInstance().format(now));
-					List<Uri> images = new LinkedList<Uri>();
-					
-					images.add(Uri.fromFile(previewFile));
-					for(int i = 0; (i < card.getImageCount() && i < MAX_IMG-1);i++){
-						images.add(card.getImage(i));
-					}
-					card.clearImages();
-					for(Uri image : images){
-						card.addImage(image);
-					}
-					mTimelineManager.update(mCardId, card);
-				}
+
 				mVidCount++;
 				updateDash();
 
@@ -182,7 +157,7 @@ public class ClipService extends Service {
 	public int onStartCommand(Intent intent, int flags, int startId) {
 
 		if (mLiveCard == null) {
-			mLiveCard = mTimelineManager.createLiveCard("perfect");
+			mLiveCard = new LiveCard(this, "pga_dash");
 
 			mLiveCard.setDirectRenderingEnabled(false);
 
