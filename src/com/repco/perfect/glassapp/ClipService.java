@@ -4,9 +4,13 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.text.DateFormat;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 
 import com.google.android.glass.app.Card;
 import com.google.android.glass.app.Card.ImageLayout;
@@ -34,7 +38,19 @@ import android.widget.RemoteViews;
 public class ClipService extends Service {
 
 	private LiveCard mLiveCard;
-
+	
+	public static final class ClipDescriptor{
+		public final String path;
+		public final Date created;
+		public final String previewPath;
+		
+		public ClipDescriptor(String path){
+			this.path = path;
+			this.previewPath = path+".thumb.jpg";
+			this.created = new Date();
+		}
+	}
+	private final Deque<ClipDescriptor> mClips = new ArrayDeque<ClipDescriptor>();
 	@Override
 	public void onCreate() {
 		super.onCreate();
@@ -81,14 +97,15 @@ public class ClipService extends Service {
 					| Intent.FLAG_ACTIVITY_CLEAR_TASK);
 			getApplication().startActivity(captureIntent);
 		}
- 
-		private Long mCardId = null;
-		private static final int MAX_IMG = 4;
 		
 
+		
 		public void saveClip(String outputPath, Bitmap rawPreview) {
 			try {
-				File previewFile = new File(outputPath + ".thumb.jpg");
+				
+				ClipDescriptor clip = new ClipDescriptor(outputPath);
+				
+				File previewFile = new File(clip.previewPath);
 				
 				Display display = ((WindowManager)getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
 				Point size = new Point();
@@ -100,9 +117,9 @@ public class ClipService extends Service {
 						previewFile));
 				Date now = new Date();
 				
+				mClips.add(clip);
 				//TODO: upload queue
 
-				mVidCount++;
 				updateDash();
 
 			} catch (FileNotFoundException e) {
@@ -110,6 +127,10 @@ public class ClipService extends Service {
 			}
 		}
 
+		public Deque<ClipDescriptor> getRecordedClips(){
+			return new ArrayDeque<ClipDescriptor>(mClips);
+		}
+		
 		public MediaRecorder getMediaRecorder() {
 			return mRec;
 		}
@@ -130,13 +151,11 @@ public class ClipService extends Service {
 			}
 		}
 	}
-	//TODO: make real
-	private int mVidCount = 0;
 	private void updateDash(){
 		if(mLiveCard.isPublished()){
 			mLiveCard.unpublish();
 		}
-		mDashView.setTextViewText(R.id.dash_main, mVidCount+" clips taken");
+		mDashView.setTextViewText(R.id.dash_main, mClips.size()+" clips taken");
 		mLiveCard.setViews(mDashView);
 		mLiveCard.publish(PublishMode.SILENT);
 	}

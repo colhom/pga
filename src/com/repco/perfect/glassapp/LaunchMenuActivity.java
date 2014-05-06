@@ -2,6 +2,7 @@ package com.repco.perfect.glassapp;
 
 import com.repco.perfect.glassapp.base.BaseBoundServiceActivity;
 
+import android.content.Intent;
 import android.view.Menu;
 import android.view.MenuItem;
 
@@ -23,6 +24,9 @@ public class LaunchMenuActivity extends BaseBoundServiceActivity {
 		switch(item.getItemId()){
 		case R.id.record_clip_item:
 			mClipService.recordClip();
+			break;
+		case R.id.preview_chapter_item:
+			startActivity(new Intent(this, ClipPreviewActivity.class));
 			break;
 		case R.id.stop_service_item:
 			mClipService.stop();

@@ -7,4 +7,5 @@
     <string name="keep_clip_mi_text">Keep</string>
     <string name="replay_clip_mi_text">Replay</string>
     <string name="discard_clip_mi_text">Discard</string>
+    <string name="preview_chapter_text">Preview Chapter</string>
 </resources>

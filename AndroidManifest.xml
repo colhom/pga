@@ -35,7 +35,12 @@
             android:immersive="true"
             android:label="@string/app_name" >
         </activity>
-
+        <activity
+            android:name="com.repco.perfect.glassapp.ClipPreviewActivity"
+            android:enabled="true"
+            android:immersive="true"
+            android:label="@string/app_name" >
+        </activity>
         <service
             android:name="com.repco.perfect.glassapp.ClipService"
             android:enabled="true"

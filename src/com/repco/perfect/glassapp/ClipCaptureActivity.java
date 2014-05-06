@@ -43,10 +43,6 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 	protected void onStop() {
 		super.onStop();
 		mClipService.destroyRecorder();
-		if(!mStateDone){
-			File f = new File(outputPath);
-			f.delete();
-		}
 	}
 	
 	@SuppressLint("TrulyRandom")
