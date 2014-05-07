@@ -1,11 +1,12 @@
 <resources>
 
     <string name="app_name">PerfectGlassApp</string>
-    <string name="perfect_voice_hook">add to trailer</string>
-    <string name="record_clip_text">Record a Clip</string>
-    <string name="stop_service_text">Close</string>
-    <string name="keep_clip_mi_text">Keep</string>
-    <string name="replay_clip_mi_text">Replay</string>
-    <string name="discard_clip_mi_text">Discard</string>
+    <string name="perfect_voice_hook">Remember This</string>
+    <string name="record_clip_text">Remember This</string>
+    <string name="stop_service_text">Dismiss</string>
+    <string name="keep_clip_mi_text">Add to Chapter</string>
+    <string name="replay_clip_mi_text">Watch</string>
+    <string name="discard_clip_mi_text">Retake</string>
     <string name="preview_chapter_text">Preview Chapter</string>
+    <string name="write_chapter_text">Write Chapter</string>
 </resources>
