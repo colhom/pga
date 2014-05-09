@@ -155,7 +155,10 @@ public class ClipService extends Service {
 		if(mLiveCard.isPublished()){
 			mLiveCard.unpublish();
 		}
-		mDashView.setTextViewText(R.id.dash_main, mClips.size()+" clips taken");
+		mDashView.setTextViewText(R.id.dash_main, "You finished your last chapter 28 days ago");
+		
+		//calculate from last finished chapter
+		
 		mLiveCard.setViews(mDashView);
 		mLiveCard.publish(PublishMode.SILENT);
 	}
