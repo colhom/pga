@@ -54,9 +54,9 @@ public class ClipPreviewActivity extends BaseBoundServiceActivity implements Sur
 			public void onCompletion(MediaPlayer mp) {
 				System.out.println("OnCompletion "+clips.size());
 				Clip clip;
-				try{
-					clip = clips.poll();
-				}catch(NoSuchElementException e){
+
+				clip = clips.poll();
+				if(clip == null){
 					// no clips left;
 					finish();
 					return;
