@@ -1,24 +1,24 @@
 package com.repco.perfect.glassapp;
 
-import java.io.File;
-import java.io.FileDescriptor;
 import java.io.IOException;
-import java.util.Deque;
 import java.util.NoSuchElementException;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnCompletionListener;
-import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
-import com.repco.perfect.glassapp.ClipService.ClipDescriptor;
 import com.repco.perfect.glassapp.base.BaseBoundServiceActivity;
+import com.repco.perfect.glassapp.storage.Chapter;
+import com.repco.perfect.glassapp.storage.Clip;
 
 public class ClipPreviewActivity extends BaseBoundServiceActivity implements SurfaceHolder.Callback {
 
-	
+	private static final String LTAG = ClipPreviewActivity.class.getSimpleName();
 	SurfaceView mSurfaceView;
 	MediaPlayer mPlayer;
 	@Override
@@ -41,15 +41,21 @@ public class ClipPreviewActivity extends BaseBoundServiceActivity implements Sur
 	@Override
 	public void surfaceCreated(SurfaceHolder holder) {
 		mPlayer.setDisplay(mSurfaceView.getHolder());
-		final Deque<ClipService.ClipDescriptor> clips = mClipService.getRecordedClips();
+	
+		Chapter chapter = (Chapter) getIntent().getExtras().getSerializable("chapter");
+		Log.d(LTAG,chapter.toString());
+		final Queue<Clip> clips = new LinkedBlockingQueue<Clip>(chapter.clips);
 		
+		for (Clip clip : clips){
+			Log.d(LTAG,clip.toString());
+		}
 		MediaPlayer.OnCompletionListener trigger = new OnCompletionListener() {
 			@Override
 			public void onCompletion(MediaPlayer mp) {
 				System.out.println("OnCompletion "+clips.size());
-				ClipDescriptor clip;
+				Clip clip;
 				try{
-					clip = clips.pop();
+					clip = clips.poll();
 				}catch(NoSuchElementException e){
 					// no clips left;
 					finish();
@@ -59,8 +65,7 @@ public class ClipPreviewActivity extends BaseBoundServiceActivity implements Sur
 				mp.reset();
 				
 				try {
-					System.out.println("Clip PATH "+clip.path);
-					mp.setDataSource(clip.path);
+					mp.setDataSource(clip.videoPath);
 					mp.prepare();
 				} catch (IOException e) {
 					throw new RuntimeException(e);

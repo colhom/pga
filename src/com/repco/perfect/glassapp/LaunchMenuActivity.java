@@ -1,6 +1,7 @@
 package com.repco.perfect.glassapp;
 
 import com.repco.perfect.glassapp.base.BaseBoundServiceActivity;
+import com.repco.perfect.glassapp.storage.StorageHandler;
 
 import android.content.Intent;
 import android.view.Menu;
@@ -26,7 +27,7 @@ public class LaunchMenuActivity extends BaseBoundServiceActivity {
 			mClipService.recordClip();
 			break;
 		case R.id.preview_chapter_item:
-			startActivity(new Intent(this, ClipPreviewActivity.class));
+			mClipService.sendMessage(StorageHandler.GET_ACTIVE_CHAPTER, null);
 			break;
 		case R.id.stop_service_item:
 			mClipService.stop();

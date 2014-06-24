@@ -16,11 +16,15 @@ import com.google.android.glass.app.Card;
 import com.google.android.glass.app.Card.ImageLayout;
 import com.google.android.glass.timeline.LiveCard;
 import com.google.android.glass.timeline.LiveCard.PublishMode;
+import com.repco.perfect.glassapp.storage.Chapter;
+import com.repco.perfect.glassapp.storage.Clip;
+import com.repco.perfect.glassapp.storage.StorageHandler;
 
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.database.sqlite.SQLiteOpenHelper;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
 import android.graphics.Point;
@@ -29,32 +33,73 @@ import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Binder;
+import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.IBinder;
+import android.os.Message;
+import android.os.Messenger;
+import android.os.RemoteException;
+import android.util.Log;
 import android.view.Display;
 import android.view.WindowManager;
 import android.widget.RemoteViews;
 
 public class ClipService extends Service {
-
+	private static final String LTAG = ClipService.class.getSimpleName();
 	private LiveCard mLiveCard;
-	
-	public static final class ClipDescriptor{
-		public final String path;
-		public final Date created;
-		public final String previewPath;
-		
-		public ClipDescriptor(String path){
-			this.path = path;
-			this.previewPath = path+".thumb.jpg";
-			this.created = new Date();
-		}
-	}
-	private final Deque<ClipDescriptor> mClips = new ArrayDeque<ClipDescriptor>();
+
+	SQLiteOpenHelper mDBHelper;
+
+	private Messenger mStorageMessenger;
+	private Messenger mStorageReplyMessenger;
+	private Handler mStorageReplyHandler;
+
 	@Override
 	public void onCreate() {
 		super.onCreate();
+		// tx
+		mDBHelper = new StorageHandler(this);
+		mStorageMessenger = new Messenger(
+				((StorageHandler) mDBHelper).mMessenger.getBinder());
+
+		// rx
+		HandlerThread ht = new HandlerThread("StorageReplyHandler");
+		ht.start();
+		mStorageReplyHandler = new Handler(ht.getLooper(), mReplyCallback);
+		mStorageReplyMessenger = new Messenger(mStorageReplyHandler);
+
 	}
+
+	private final Handler.Callback mReplyCallback = new Handler.Callback() {
+
+		@Override
+		public boolean handleMessage(Message msg) {
+			boolean delivered = false;
+			
+			Log.d(LTAG,"handleMessage "+msg.what);
+			switch (msg.what) {
+			case StorageHandler.RECEIVE_ACTIVE_CHAPTER:
+				Chapter active = (Chapter) msg.obj;
+				
+				Intent previewIntent = new Intent(ClipService.this,ClipPreviewActivity.class);
+				previewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+						| Intent.FLAG_ACTIVITY_CLEAR_TASK);
+				Bundle args = new Bundle();
+				args.putSerializable("chapter", active);
+				previewIntent.putExtras(args);
+				startActivity(previewIntent);
+				delivered = true;
+				Log.i(LTAG,"GET_ACTIVE_CHAPTER delivered");
+				break;
+			default:
+				break;
+			}
+
+			return delivered;
+		}
+	};
 
 	public class ClipServiceBinder extends Binder {
 
@@ -97,40 +142,46 @@ public class ClipService extends Service {
 					| Intent.FLAG_ACTIVITY_CLEAR_TASK);
 			getApplication().startActivity(captureIntent);
 		}
-		
 
-		
+
 		public void saveClip(String outputPath, Bitmap rawPreview) {
 			try {
-				
-				ClipDescriptor clip = new ClipDescriptor(outputPath);
-				
-				File previewFile = new File(clip.previewPath);
-				
-				Display display = ((WindowManager)getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
+
+				File previewFile = new File(outputPath + ".thumb.jpg");
+
+				Display display = ((WindowManager) getSystemService(Context.WINDOW_SERVICE))
+						.getDefaultDisplay();
 				Point size = new Point();
 				display.getSize(size);
-				
-				Bitmap preview = Bitmap.createScaledBitmap(rawPreview, size.x, size.y, true);
-				
+
+				Bitmap preview = Bitmap.createScaledBitmap(rawPreview, size.x,
+						size.y, true);
+
 				preview.compress(CompressFormat.JPEG, 50, new FileOutputStream(
 						previewFile));
-				Date now = new Date();
 				
-				mClips.add(clip);
-				//TODO: upload queue
+				Clip clip = new Clip(outputPath, previewFile.getAbsolutePath());
 
+				sendMessage(StorageHandler.PUSH_CLIP,clip);
+				
 				updateDash();
 
 			} catch (FileNotFoundException e) {
 				throw new RuntimeException(e);
 			}
 		}
-
-		public Deque<ClipDescriptor> getRecordedClips(){
-			return new ArrayDeque<ClipDescriptor>(mClips);
+		public void sendMessage(int what, Object obj){
+			Message msg = Message.obtain();
+			msg.what = what;
+			msg.obj = obj;
+			msg.replyTo = mStorageReplyMessenger;
+			try {
+				mStorageMessenger.send(msg);
+			} catch (RemoteException e) {
+				throw new RuntimeException(e);
+			}			
 		}
-		
+
 		public MediaRecorder getMediaRecorder() {
 			return mRec;
 		}
@@ -139,9 +190,9 @@ public class ClipService extends Service {
 			System.out.println("DestroyRecorder: " + mRec + " : " + mCamera);
 			try {
 				if (mRec != null) {
-						mRec.stop();
-						mRec.release();
-						mRec = null;
+					mRec.stop();
+					mRec.release();
+					mRec = null;
 				}
 			} finally {
 				if (mCamera != null) {
@@ -151,14 +202,16 @@ public class ClipService extends Service {
 			}
 		}
 	}
-	private void updateDash(){
-		if(mLiveCard.isPublished()){
+
+	private void updateDash() {
+		if (mLiveCard.isPublished()) {
 			mLiveCard.unpublish();
 		}
-		mDashView.setTextViewText(R.id.dash_main, mClips.size()+" clips taken");
+
 		mLiveCard.setViews(mDashView);
 		mLiveCard.publish(PublishMode.SILENT);
 	}
+
 	private final ClipServiceBinder mBinder = new ClipServiceBinder();
 
 	@Override
@@ -172,6 +225,7 @@ public class ClipService extends Service {
 	private MediaRecorder mRec;
 	private Camera mCamera = null;
 	private RemoteViews mDashView = null;
+
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
 
@@ -184,11 +238,10 @@ public class ClipService extends Service {
 			mLiveCard.setViews(mDashView);
 
 			Intent menuIntent = new Intent(this, LaunchMenuActivity.class);
-			menuIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-					| Intent.FLAG_ACTIVITY_CLEAR_TASK);
+
 			mLiveCard.setAction(PendingIntent.getActivity(this, 0, menuIntent,
 					0));
-			
+
 			updateDash();
 		}
 		if (!clipRoot.exists()) {
@@ -198,7 +251,7 @@ public class ClipService extends Service {
 			}
 		}
 
-		mBinder.recordClip();
+		//mBinder.recordClip();
 		return START_STICKY;
 	}
 
@@ -209,6 +262,11 @@ public class ClipService extends Service {
 
 			mLiveCard.unpublish();
 			mLiveCard = null;
+		}
+
+		if (mDBHelper != null) {
+			mDBHelper.close();
+			mDBHelper = null;
 		}
 		super.onDestroy();
 	}
