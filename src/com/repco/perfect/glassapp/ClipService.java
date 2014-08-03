@@ -29,8 +29,12 @@ import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
 import android.graphics.Point;
 import android.hardware.Camera;
+import android.media.AudioManager;
 import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
+import android.media.MediaRecorder.AudioEncoder;
+import android.media.MediaRecorder.OutputFormat;
+import android.media.MediaRecorder.VideoEncoder;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
@@ -77,13 +81,14 @@ public class ClipService extends Service {
 		@Override
 		public boolean handleMessage(Message msg) {
 			boolean delivered = false;
-			
-			Log.d(LTAG,"handleMessage "+msg.what);
+
+			Log.d(LTAG, "handleMessage " + msg.what);
 			switch (msg.what) {
 			case StorageHandler.RECEIVE_ACTIVE_CHAPTER:
 				Chapter active = (Chapter) msg.obj;
-				
-				Intent previewIntent = new Intent(ClipService.this,ClipPreviewActivity.class);
+
+				Intent previewIntent = new Intent(ClipService.this,
+						ClipPreviewActivity.class);
 				previewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
 						| Intent.FLAG_ACTIVITY_CLEAR_TASK);
 				Bundle args = new Bundle();
@@ -91,7 +96,7 @@ public class ClipService extends Service {
 				previewIntent.putExtras(args);
 				startActivity(previewIntent);
 				delivered = true;
-				Log.i(LTAG,"GET_ACTIVE_CHAPTER delivered");
+				Log.i(LTAG, "GET_ACTIVE_CHAPTER delivered");
 				break;
 			default:
 				break;
@@ -107,34 +112,9 @@ public class ClipService extends Service {
 			ClipService.this.stopSelf();
 		}
 
+		public AudioManager mAudio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+
 		public void recordClip() {
-			for (int retry = 0; retry < 20; retry++) {
-				try {
-					System.out.println("Camera attempt #" + retry);
-					mCamera = Camera.open(); // attempt to get a Camera instance
-				} catch (Exception e) {
-					System.err.println(e);
-					try {
-						Thread.sleep(60);
-					} catch (InterruptedException e1) {
-						// TODO Auto-generated catch block
-						e1.printStackTrace();
-					}
-					continue;
-				}
-				break;
-			}
-
-			if (mCamera == null) {
-				throw new RuntimeException("Couldn't get camera service");
-			}
-			mCamera.unlock();
-
-			mRec = new MediaRecorder();
-			mRec.setCamera(mCamera);
-			mRec.setAudioSource(MediaRecorder.AudioSource.MIC);
-			mRec.setVideoSource(MediaRecorder.VideoSource.CAMERA);
-			mRec.setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH));
 
 			Intent captureIntent = new Intent(ClipService.this,
 					ClipCaptureActivity.class);
@@ -142,7 +122,6 @@ public class ClipService extends Service {
 					| Intent.FLAG_ACTIVITY_CLEAR_TASK);
 			getApplication().startActivity(captureIntent);
 		}
-
 
 		public void saveClip(String outputPath, Bitmap rawPreview) {
 			try {
@@ -159,18 +138,19 @@ public class ClipService extends Service {
 
 				preview.compress(CompressFormat.JPEG, 50, new FileOutputStream(
 						previewFile));
-				
+
 				Clip clip = new Clip(outputPath, previewFile.getAbsolutePath());
 
-				sendMessage(StorageHandler.PUSH_CLIP,clip);
-				
+				sendMessage(StorageHandler.PUSH_CLIP, clip);
+
 				updateDash();
 
 			} catch (FileNotFoundException e) {
 				throw new RuntimeException(e);
 			}
 		}
-		public void sendMessage(int what, Object obj){
+
+		public void sendMessage(int what, Object obj) {
 			Message msg = Message.obtain();
 			msg.what = what;
 			msg.obj = obj;
@@ -179,28 +159,9 @@ public class ClipService extends Service {
 				mStorageMessenger.send(msg);
 			} catch (RemoteException e) {
 				throw new RuntimeException(e);
-			}			
-		}
-
-		public MediaRecorder getMediaRecorder() {
-			return mRec;
-		}
-
-		public void destroyRecorder() {
-			System.out.println("DestroyRecorder: " + mRec + " : " + mCamera);
-			try {
-				if (mRec != null) {
-					mRec.stop();
-					mRec.release();
-					mRec = null;
-				}
-			} finally {
-				if (mCamera != null) {
-					mCamera.release();
-					mCamera = null;
-				}
 			}
 		}
+
 	}
 
 	private void updateDash() {
@@ -212,18 +173,13 @@ public class ClipService extends Service {
 		mLiveCard.publish(PublishMode.SILENT);
 	}
 
-	private final ClipServiceBinder mBinder = new ClipServiceBinder();
+	private ClipServiceBinder mBinder;
 
 	@Override
 	public IBinder onBind(Intent intent) {
 		return mBinder;
 	}
 
-	public static File clipRoot = new File(
-			Environment.getExternalStorageDirectory() + "/.perfect_cache");
-
-	private MediaRecorder mRec;
-	private Camera mCamera = null;
 	private RemoteViews mDashView = null;
 
 	@Override
@@ -244,20 +200,13 @@ public class ClipService extends Service {
 
 			updateDash();
 		}
-		if (!clipRoot.exists()) {
-			if (!clipRoot.mkdir()) {
-				throw new RuntimeException("Cannot mkdir "
-						+ clipRoot.getAbsolutePath());
-			}
-		}
-
-		//mBinder.recordClip();
+		mBinder = new ClipServiceBinder();
+		mBinder.recordClip();
 		return START_STICKY;
 	}
 
 	@Override
 	public void onDestroy() {
-		mBinder.destroyRecorder();
 		if (mLiveCard != null && mLiveCard.isPublished()) {
 
 			mLiveCard.unpublish();

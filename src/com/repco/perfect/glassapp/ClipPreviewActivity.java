@@ -5,27 +5,32 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import android.graphics.SurfaceTexture;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnCompletionListener;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.TextureView;
+import android.view.TextureView.SurfaceTextureListener;
 
+import com.google.android.glass.media.Sounds;
 import com.repco.perfect.glassapp.base.BaseBoundServiceActivity;
 import com.repco.perfect.glassapp.storage.Chapter;
 import com.repco.perfect.glassapp.storage.Clip;
 
-public class ClipPreviewActivity extends BaseBoundServiceActivity implements SurfaceHolder.Callback {
+public class ClipPreviewActivity extends BaseBoundServiceActivity implements SurfaceTextureListener {
 
 	private static final String LTAG = ClipPreviewActivity.class.getSimpleName();
-	SurfaceView mSurfaceView;
+	TextureView mSurfaceView;
 	MediaPlayer mPlayer;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		mSurfaceView = new SurfaceView(this);
-		mSurfaceView.getHolder().addCallback(this);
+		mSurfaceView = new TextureView(this);
+		mSurfaceView.setSurfaceTextureListener(this);
 		mPlayer = new MediaPlayer();
 		setContentView(mSurfaceView);
 		
@@ -35,14 +40,29 @@ public class ClipPreviewActivity extends BaseBoundServiceActivity implements Sur
 	protected void onClipServiceConnected() {
 
 	}
-	@Override
-	public void surfaceChanged(SurfaceHolder holder, int format, int width,
-			int height) {}
-	@Override
-	public void surfaceCreated(SurfaceHolder holder) {
-		mPlayer.setDisplay(mSurfaceView.getHolder());
+
 	
+	@Override
+	protected void onDestroy() {
+		super.onDestroy();
+		if(mPlayer != null){
+			mPlayer.release();
+		}
+	}
+	@Override
+	public void onSurfaceTextureAvailable(SurfaceTexture arg0, int arg1,
+			int arg2) {
+		final Surface surface = new Surface(mSurfaceView.getSurfaceTexture());
+		mPlayer.setSurface(surface);
+		
 		Chapter chapter = (Chapter) getIntent().getExtras().getSerializable("chapter");
+		
+		if(chapter == null){
+			mClipService.mAudio.playSoundEffect(Sounds.DISALLOWED);
+			finish();
+			return;
+		}
+		
 		Log.d(LTAG,chapter.toString());
 		final Queue<Clip> clips = new LinkedBlockingQueue<Clip>(chapter.clips);
 		
@@ -58,6 +78,7 @@ public class ClipPreviewActivity extends BaseBoundServiceActivity implements Sur
 				clip = clips.poll();
 				if(clip == null){
 					// no clips left;
+					surface.release();
 					finish();
 					return;
 				}
@@ -78,16 +99,23 @@ public class ClipPreviewActivity extends BaseBoundServiceActivity implements Sur
 		};
 		
 		trigger.onCompletion(mPlayer);
-	}
-	
-	@Override
-	protected void onDestroy() {
-		super.onDestroy();
-		if(mPlayer != null){
-			mPlayer.release();
-		}
+		
 	}
 	@Override
-	public void surfaceDestroyed(SurfaceHolder holder) {}
+	public boolean onSurfaceTextureDestroyed(SurfaceTexture arg0) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+	@Override
+	public void onSurfaceTextureSizeChanged(SurfaceTexture arg0, int arg1,
+			int arg2) {
+		// TODO Auto-generated method stub
+		
+	}
+	@Override
+	public void onSurfaceTextureUpdated(SurfaceTexture arg0) {
+		// TODO Auto-generated method stub
+		
+	}
 
 }
