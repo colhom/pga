@@ -24,15 +24,15 @@ import com.repco.perfect.glassapp.storage.Clip;
 public class ClipPreviewActivity extends BaseBoundServiceActivity implements SurfaceTextureListener {
 
 	private static final String LTAG = ClipPreviewActivity.class.getSimpleName();
-	TextureView mSurfaceView;
+	TextureView mTextureView;
 	MediaPlayer mPlayer;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		mSurfaceView = new TextureView(this);
-		mSurfaceView.setSurfaceTextureListener(this);
+		mTextureView = new TextureView(this);
+		mTextureView.setSurfaceTextureListener(this);
 		mPlayer = new MediaPlayer();
-		setContentView(mSurfaceView);
+		setContentView(mTextureView);
 		
 
 	}
@@ -52,7 +52,7 @@ public class ClipPreviewActivity extends BaseBoundServiceActivity implements Sur
 	@Override
 	public void onSurfaceTextureAvailable(SurfaceTexture arg0, int arg1,
 			int arg2) {
-		final Surface surface = new Surface(mSurfaceView.getSurfaceTexture());
+		final Surface surface = new Surface(mTextureView.getSurfaceTexture());
 		mPlayer.setSurface(surface);
 		
 		Chapter chapter = (Chapter) getIntent().getExtras().getSerializable("chapter");
