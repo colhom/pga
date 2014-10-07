@@ -2,8 +2,12 @@ package com.repco.perfect.glassapp;
 
 import com.repco.perfect.glassapp.base.BaseBoundServiceActivity;
 import com.repco.perfect.glassapp.storage.StorageHandler;
+import com.repco.perfect.glassapp.sync.SyncService;
 
+import android.accounts.Account;
+import android.accounts.AccountManager;
 import android.content.Intent;
+import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 

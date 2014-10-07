@@ -4,8 +4,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
+import com.repco.perfect.glassapp.ClipService;
 import com.repco.perfect.glassapp.base.Storable;
+import com.repco.perfect.glassapp.sync.SyncService;
 
+import android.accounts.Account;
+import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
@@ -13,6 +17,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Handler;
 import android.os.Handler.Callback;
+import android.os.Bundle;
 import android.os.HandlerThread;
 import android.os.Message;
 import android.os.Messenger;
@@ -24,7 +29,7 @@ public class StorageHandler extends SQLiteOpenHelper {
 	public static final int MIN_CHAPTER_SIZE = 5;
 	public static final int PUSH_CLIP = 0, GET_CHAPTERS = 1,
 			RECEIVE_CHAPTERS = 2, GET_ACTIVE_CHAPTER = 3,
-			RECEIVE_ACTIVE_CHAPTER = 4, END_CHAPTER = 5;
+			RECEIVE_ACTIVE_CHAPTER = 4, END_CHAPTER = 5,GET_NEXT_STORABLE=6,RECEIVE_NEXT_STORABLE=7;
 
 	private static String DB_NAME = "PerfectDB";
 	private static int DB_VERSION = 1;
@@ -74,6 +79,7 @@ public class StorageHandler extends SQLiteOpenHelper {
 					upsertRow(active);
 					delivered = true;
 					mDb.setTransactionSuccessful();
+					requestSync();
 					Log.i(LTAG, "PUSH_CLIP transcaction completed");
 
 					break;
@@ -88,6 +94,7 @@ public class StorageHandler extends SQLiteOpenHelper {
 					} else {
 						upsertRow(new Chapter());
 						delivered = true;
+						requestSync();
 					}
 					break;
 				case GET_CHAPTERS:
@@ -101,6 +108,12 @@ public class StorageHandler extends SQLiteOpenHelper {
 					reply = Message
 							.obtain(null, RECEIVE_ACTIVE_CHAPTER, active);
 
+					delivered = true;
+					break;
+				case GET_NEXT_STORABLE:
+					Storable next = getNextStorable();
+					Log.i(LTAG,"Get next storable: "+next);
+					reply = Message.obtain(null,RECEIVE_NEXT_STORABLE,next);
 					delivered = true;
 					break;
 				default:
@@ -127,6 +140,13 @@ public class StorageHandler extends SQLiteOpenHelper {
 			}
 		}
 	};
+	
+	private void requestSync(){
+		Bundle extras = new Bundle();
+		extras.putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true);
+		
+		ContentResolver.requestSync(ClipService.ACCOUNT,ClipService.AUTHORITY,extras);
+	}
 	public static final String TABLE_NAME = "storables";
 	public static final String JSON_DATA_KEY = "data", TS_DATA_KEY = "ts",
 			ID_KEY = "uuid", TYPE_KEY = "type", DIRTY_KEY = "dirty";
@@ -242,11 +262,26 @@ public class StorageHandler extends SQLiteOpenHelper {
 					TS_DATA_KEY + " DESC", "1");
 			if (c.moveToFirst()) {
 				return (Chapter) unmarshalStorable(c);
-			} else {
-				return null;
-			}
+			} 
+			return null;
+			
 		} finally {
 			if (c != null) {
+				c.close();
+			}
+		}
+	}
+	
+	private Storable getNextStorable(){
+		Cursor c = null;
+		try{
+			c = mDb.query(TABLE_NAME, null, DIRTY_KEY+"=1",null,null, TS_DATA_KEY+" DESC","1");
+			if (c.moveToFirst()){
+				return (Storable) unmarshalStorable(c);
+			}
+			return null;
+		}finally{
+			if (c != null){
 				c.close();
 			}
 		}

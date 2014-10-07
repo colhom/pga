@@ -3,42 +3,28 @@ package com.repco.perfect.glassapp;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.text.DateFormat;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Deque;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Queue;
 
-import com.google.android.glass.app.Card;
-import com.google.android.glass.app.Card.ImageLayout;
 import com.google.android.glass.timeline.LiveCard;
 import com.google.android.glass.timeline.LiveCard.PublishMode;
 import com.repco.perfect.glassapp.storage.Chapter;
 import com.repco.perfect.glassapp.storage.Clip;
 import com.repco.perfect.glassapp.storage.StorageHandler;
+import com.repco.perfect.glassapp.sync.SyncService;
 
+import android.accounts.Account;
+import android.accounts.AccountManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
 import android.graphics.Point;
-import android.hardware.Camera;
 import android.media.AudioManager;
-import android.media.CamcorderProfile;
-import android.media.MediaRecorder;
-import android.media.MediaRecorder.AudioEncoder;
-import android.media.MediaRecorder.OutputFormat;
-import android.media.MediaRecorder.VideoEncoder;
-import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -60,9 +46,40 @@ public class ClipService extends Service {
 	private Messenger mStorageReplyMessenger;
 	private Handler mStorageReplyHandler;
 
+	
+	public static  String AUTHORITY,ACCOUNT_TYPE;
+	public static final String ACCOUNT_NAME = "dummy_perfect_account";
+	public static Account ACCOUNT;
+	
 	@Override
 	public void onCreate() {
 		super.onCreate();
+		AUTHORITY = getResources().getString(R.string.provider_type);
+		ACCOUNT_TYPE = getResources().getString(R.string.account_type);
+	
+		
+		AccountManager accountManager = (AccountManager) getSystemService(ACCOUNT_SERVICE);
+		
+		Account[] accounts = accountManager.getAccountsByType(ACCOUNT_TYPE);
+		
+		if(accounts.length == 0){
+			Log.i(LTAG,"creating new account");
+			ACCOUNT = new Account(ACCOUNT_NAME,ACCOUNT_TYPE);
+			ContentResolver.setSyncAutomatically(ACCOUNT, AUTHORITY, true);
+			ContentResolver.setIsSyncable(ACCOUNT, AUTHORITY, 1);		
+			if (!accountManager.addAccountExplicitly(ACCOUNT, null, null)) {
+
+				System.err.println("Add account failed!");
+			}
+		}else if(accounts.length == 1){
+			Log.i(LTAG,"Using existing account");
+			ACCOUNT = accounts[0];
+			ContentResolver.setSyncAutomatically(ACCOUNT, AUTHORITY, true);
+			ContentResolver.setIsSyncable(ACCOUNT, AUTHORITY, 1);
+		}else{
+			
+			throw new RuntimeException("We have too many ("+accounts.length+") accounts!");
+		}
 		// tx
 		mDBHelper = new StorageHandler(this);
 		mStorageMessenger = new Messenger(
@@ -181,6 +198,7 @@ public class ClipService extends Service {
 	}
 
 	private RemoteViews mDashView = null;
+
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {

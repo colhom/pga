@@ -4,8 +4,12 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.security.SecureRandom;
-import com.repco.perfect.glassapp.base.BaseBoundServiceActivity;
 
+import com.repco.perfect.glassapp.base.BaseBoundServiceActivity;
+import com.repco.perfect.glassapp.sync.SyncService;
+
+import android.accounts.Account;
+import android.accounts.AccountManager;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -21,6 +25,7 @@ import android.os.Bundle;
 import android.provider.MediaStore.Video.Thumbnails;
 
 import com.google.android.glass.media.Sounds;
+
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -43,6 +48,7 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 		am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 		mTextureView = new TextureView(this);
 		setContentView(mTextureView);
+		
 	}
 
 
