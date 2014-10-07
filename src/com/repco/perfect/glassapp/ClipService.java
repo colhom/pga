@@ -9,15 +9,18 @@ import com.google.android.glass.timeline.LiveCard.PublishMode;
 import com.repco.perfect.glassapp.storage.Chapter;
 import com.repco.perfect.glassapp.storage.Clip;
 import com.repco.perfect.glassapp.storage.StorageHandler;
+import com.repco.perfect.glassapp.storage.StorageService;
 import com.repco.perfect.glassapp.sync.SyncService;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
@@ -40,7 +43,6 @@ public class ClipService extends Service {
 	private static final String LTAG = ClipService.class.getSimpleName();
 	private LiveCard mLiveCard;
 
-	SQLiteOpenHelper mDBHelper;
 
 	private Messenger mStorageMessenger;
 	private Messenger mStorageReplyMessenger;
@@ -51,6 +53,20 @@ public class ClipService extends Service {
 	public static final String ACCOUNT_NAME = "dummy_perfect_account";
 	public static Account ACCOUNT;
 	
+	private final ServiceConnection mStorageConnection = new ServiceConnection() {
+		
+		@Override
+		public void onServiceDisconnected(ComponentName arg0) {
+			Log.i(LTAG, "Storage service connection disconnected");
+			mStorageMessenger = null;
+		}
+		
+		@Override
+		public void onServiceConnected(ComponentName arg0, IBinder binder) {
+			Log.i(LTAG, "Storage service connection connected");
+			mStorageMessenger = new Messenger(binder);
+		}
+	};
 	@Override
 	public void onCreate() {
 		super.onCreate();
@@ -64,9 +80,7 @@ public class ClipService extends Service {
 		
 		if(accounts.length == 0){
 			Log.i(LTAG,"creating new account");
-			ACCOUNT = new Account(ACCOUNT_NAME,ACCOUNT_TYPE);
-			ContentResolver.setSyncAutomatically(ACCOUNT, AUTHORITY, true);
-			ContentResolver.setIsSyncable(ACCOUNT, AUTHORITY, 1);		
+			ACCOUNT = new Account(ACCOUNT_NAME,ACCOUNT_TYPE);	
 			if (!accountManager.addAccountExplicitly(ACCOUNT, null, null)) {
 
 				System.err.println("Add account failed!");
@@ -74,16 +88,20 @@ public class ClipService extends Service {
 		}else if(accounts.length == 1){
 			Log.i(LTAG,"Using existing account");
 			ACCOUNT = accounts[0];
-			ContentResolver.setSyncAutomatically(ACCOUNT, AUTHORITY, true);
-			ContentResolver.setIsSyncable(ACCOUNT, AUTHORITY, 1);
 		}else{
 			
 			throw new RuntimeException("We have too many ("+accounts.length+") accounts!");
 		}
-		// tx
-		mDBHelper = new StorageHandler(this);
-		mStorageMessenger = new Messenger(
-				((StorageHandler) mDBHelper).mMessenger.getBinder());
+		
+		ContentResolver.setIsSyncable(ACCOUNT, AUTHORITY, 1);
+		ContentResolver.setSyncAutomatically(ACCOUNT, AUTHORITY, true);
+		
+		ContentResolver.addPeriodicSync(ACCOUNT, AUTHORITY, new Bundle(), 60*5);
+		
+
+		if(!bindService(new Intent(this, StorageService.class), mStorageConnection, BIND_AUTO_CREATE)){
+			throw new RuntimeException("Could not bind to storage service");
+		}
 
 		// rx
 		HandlerThread ht = new HandlerThread("StorageReplyHandler");
@@ -230,11 +248,7 @@ public class ClipService extends Service {
 			mLiveCard.unpublish();
 			mLiveCard = null;
 		}
-
-		if (mDBHelper != null) {
-			mDBHelper.close();
-			mDBHelper = null;
-		}
+		unbindService(mStorageConnection);
 		super.onDestroy();
 	}
 
