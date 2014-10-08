@@ -18,10 +18,13 @@ public abstract class Storable implements Serializable{
 	private static final long serialVersionUID = 1L;
 	@Expose
 	public final String id;
+	
 	@Expose
 	public final Date ts;
 	
+	@Expose
 	public boolean dirty = true;
+	
 	public Storable(){
 		this.id = UUID.randomUUID().toString();
 		this.ts = new Date();

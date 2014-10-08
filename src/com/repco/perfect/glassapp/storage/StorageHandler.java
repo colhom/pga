@@ -4,6 +4,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
+import com.repco.perfect.glassapp.BuildConfig;
 import com.repco.perfect.glassapp.ClipService;
 import com.repco.perfect.glassapp.base.Storable;
 import com.repco.perfect.glassapp.sync.SyncService;
@@ -29,7 +30,8 @@ public class StorageHandler extends SQLiteOpenHelper {
 	public static final int MIN_CHAPTER_SIZE = 5;
 	public static final int PUSH_CLIP = 0, GET_CHAPTERS = 1,
 			RECEIVE_CHAPTERS = 2, GET_ACTIVE_CHAPTER = 3,
-			RECEIVE_ACTIVE_CHAPTER = 4, END_CHAPTER = 5,GET_NEXT_STORABLE=6,RECEIVE_NEXT_STORABLE=7;
+			RECEIVE_ACTIVE_CHAPTER = 4, END_CHAPTER = 5, GET_NEXT_STORABLE = 6,
+			RECEIVE_NEXT_STORABLE = 7, PUSH_STORABLE=8;
 
 	private static String DB_NAME = "PerfectDB";
 	private static int DB_VERSION = 1;
@@ -112,10 +114,17 @@ public class StorageHandler extends SQLiteOpenHelper {
 					break;
 				case GET_NEXT_STORABLE:
 					Storable next = getNextStorable();
-					Log.i(LTAG,"Get next storable: "+next);
-					reply = Message.obtain(null,RECEIVE_NEXT_STORABLE,next);
+					Log.i(LTAG, "Get next storable: " + next);
+
+					reply = Message.obtain(null, RECEIVE_NEXT_STORABLE, next);
 					delivered = true;
 					break;
+					
+				case PUSH_STORABLE:
+					Storable storable = (Storable) msg.obj;
+					Log.i(LTAG,"Push Storable: "+storable);
+					upsertRow(storable);
+					delivered=true;
 				default:
 					break;
 				}
@@ -134,19 +143,21 @@ public class StorageHandler extends SQLiteOpenHelper {
 				if (mDb.inTransaction()) {
 					Log.i(LTAG, "Ending transaction");
 					mDb.endTransaction();
-				}else{
-					Log.i(LTAG,"No transaction, will not end");
+				} else {
+					Log.i(LTAG, "No transaction, will not end");
 				}
 			}
 		}
 	};
-	
-	private void requestSync(){
+
+	private void requestSync() {
 		Bundle extras = new Bundle();
 		extras.putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true);
-		
-		ContentResolver.requestSync(ClipService.ACCOUNT,ClipService.AUTHORITY,extras);
+
+		ContentResolver.requestSync(ClipService.ACCOUNT, ClipService.AUTHORITY,
+				extras);
 	}
+
 	public static final String TABLE_NAME = "storables";
 	public static final String JSON_DATA_KEY = "data", TS_DATA_KEY = "ts",
 			ID_KEY = "uuid", TYPE_KEY = "type", DIRTY_KEY = "dirty";
@@ -220,11 +231,15 @@ public class StorageHandler extends SQLiteOpenHelper {
 					new String[] { row.id });
 
 			Log.i(LTAG, "upsertRow update " + rowsAffected + " rows affected");
-			assert (rowsAffected == 1);
+			if (BuildConfig.DEBUG && rowsAffected != 1){
+				throw new RuntimeException("upsertRow update affects "+rowsAffected+" rows, should be 1");
+			}
 		} else {
 			long rowId = mDb.insert(TABLE_NAME, null, cv);
 			Log.i(LTAG, "upsertRow insert return rowid " + rowId);
-			assert (rowId != -1);
+			if (BuildConfig.DEBUG && rowId == -1){
+				throw new RuntimeException("upsertRow insert returns id = -1");
+			}
 		}
 
 	}
@@ -262,26 +277,27 @@ public class StorageHandler extends SQLiteOpenHelper {
 					TS_DATA_KEY + " DESC", "1");
 			if (c.moveToFirst()) {
 				return (Chapter) unmarshalStorable(c);
-			} 
+			}
 			return null;
-			
+
 		} finally {
 			if (c != null) {
 				c.close();
 			}
 		}
 	}
-	
-	private Storable getNextStorable(){
+
+	private Storable getNextStorable() {
 		Cursor c = null;
-		try{
-			c = mDb.query(TABLE_NAME, null, DIRTY_KEY+"=1",null,null, TS_DATA_KEY+" DESC","1");
-			if (c.moveToFirst()){
-				return (Storable) unmarshalStorable(c);
+		try {
+			c = mDb.query(TABLE_NAME, null, DIRTY_KEY + "=1",null, null, null,
+					TS_DATA_KEY + " DESC", "1");
+			if (c.moveToFirst()) {
+				return unmarshalStorable(c);
 			}
 			return null;
-		}finally{
-			if (c != null){
+		} finally {
+			if (c != null) {
 				c.close();
 			}
 		}

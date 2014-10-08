@@ -73,8 +73,7 @@
         <service
             android:name="com.repco.perfect.glassapp.sync.SyncService"
             android:enabled="true"
-            android:exported="true"
-            android:process=":sync" >
+            android:exported="true" >
             <intent-filter>
                 <action android:name="android.content.SyncAdapter" />
             </intent-filter>
