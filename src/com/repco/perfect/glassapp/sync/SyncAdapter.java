@@ -3,7 +3,18 @@ package com.repco.perfect.glassapp.sync;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 
+import retrofit.RestAdapter;
+import retrofit.RetrofitError;
+import retrofit.client.Response;
+import retrofit.http.Multipart;
+import retrofit.http.POST;
+import retrofit.http.PUT;
+import retrofit.http.Part;
+import retrofit.mime.TypedFile;
+import retrofit.mime.TypedString;
+
 import com.repco.perfect.glassapp.BuildConfig;
+import com.repco.perfect.glassapp.DevData;
 import com.repco.perfect.glassapp.base.Storable;
 import com.repco.perfect.glassapp.storage.StorageHandler;
 import com.repco.perfect.glassapp.storage.StorageService;
@@ -51,7 +62,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			serviceBarrier.countDown();
 		}
 	};
-	
+
 	private CountDownLatch serviceBarrier;
 
 	@Override
@@ -62,19 +73,20 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
 		ConnectivityManager connManager = (ConnectivityManager) getContext()
 				.getSystemService(Context.CONNECTIVITY_SERVICE);
-		
+
 		NetworkInfo mWifi = connManager.getActiveNetworkInfo();
 
-		if(mWifi == null){
+		if (mWifi == null) {
 			Log.i(LTAG, "No active network connection, skipping sync");
 			return;
 		}
-		
-		if(connManager.isActiveNetworkMetered()){
-			Log.i("LTAG","Active network connection is metetered, skipping sync");
+
+		if (connManager.isActiveNetworkMetered()) {
+			Log.i("LTAG",
+					"Active network connection is metetered, skipping sync");
 			return;
 		}
-		
+
 		// TODO: this is gross, architect your software properly plz
 		final Semaphore syncBarrier = new Semaphore(1);
 		final CountDownLatch doneBarrier = new CountDownLatch(1);
@@ -101,18 +113,23 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 						}
 
 						Log.i(LTAG, "sync storable " + storable);
-						// TODO: actually sync storable
+						
+						
+						if(storable.doSync()){
+							Log.i(LTAG, "Sync successful, writing back storable");
+							storable.dirty = false;
+							Message storemsg = Message.obtain();
+							storemsg.what = StorageHandler.PUSH_STORABLE;
+							storemsg.obj = storable;
 
-						storable.dirty = false;
-
-						Message storemsg = Message.obtain();
-						storemsg.what = StorageHandler.PUSH_STORABLE;
-						storemsg.obj = storable;
-
-						try {
-							mStorageMessenger.send(storemsg);
-						} catch (RemoteException e) {
-							throw new RuntimeException(e);
+							try {
+								mStorageMessenger.send(storemsg);
+							} catch (RemoteException e) {
+								throw new RuntimeException(e);
+							}
+						}else{
+							Log.w(LTAG,"Sync failed, will abort sync");
+							doneBarrier.countDown();
 						}
 					}
 
@@ -142,14 +159,13 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				mStorageConnection, Context.BIND_AUTO_CREATE)) {
 			throw new RuntimeException("Could not bind to storage service");
 		}
-		
-		
+
 		try {
 			serviceBarrier.await();
 		} catch (InterruptedException e1) {
 			throw new RuntimeException(e1);
 		}
-		
+
 		while (doneBarrier.getCount() != 0) {
 			try {
 				// will block here waiting for RECEIVE_NEXT_STORABLE message
@@ -172,10 +188,12 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			}
 
 		}
-
+		
+		Log.i(LTAG,"performSync() cleaning up");
 		// Cleanup
 		getContext().unbindService(mStorageConnection);
 
 	}
+
 
 }

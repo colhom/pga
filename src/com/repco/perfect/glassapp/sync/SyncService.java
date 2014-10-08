@@ -14,7 +14,6 @@ public class SyncService extends Service {
 	@Override
 	public void onCreate() {
 		super.onCreate();
-		System.out.println("fernando");
 		synchronized(SyncService.syncAdapterLock){
 			if(syncAdapter == null){
 				syncAdapter = new SyncAdapter(getApplicationContext(), true);

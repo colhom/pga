@@ -81,6 +81,8 @@ public class ClipService extends Service {
 		if(accounts.length == 0){
 			Log.i(LTAG,"creating new account");
 			ACCOUNT = new Account(ACCOUNT_NAME,ACCOUNT_TYPE);	
+			ContentResolver.setIsSyncable(ACCOUNT, AUTHORITY, 1);
+			ContentResolver.setSyncAutomatically(ACCOUNT, AUTHORITY, true);
 			if (!accountManager.addAccountExplicitly(ACCOUNT, null, null)) {
 
 				System.err.println("Add account failed!");
@@ -88,13 +90,14 @@ public class ClipService extends Service {
 		}else if(accounts.length == 1){
 			Log.i(LTAG,"Using existing account");
 			ACCOUNT = accounts[0];
+
 		}else{
 			
 			throw new RuntimeException("We have too many ("+accounts.length+") accounts!");
 		}
-		
 		ContentResolver.setIsSyncable(ACCOUNT, AUTHORITY, 1);
-		ContentResolver.setSyncAutomatically(ACCOUNT, AUTHORITY, true);
+		ContentResolver.setSyncAutomatically(ACCOUNT, AUTHORITY, true);		
+		
 		
 		ContentResolver.addPeriodicSync(ACCOUNT, AUTHORITY, new Bundle(), 60*5);
 		
