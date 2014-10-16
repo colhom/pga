@@ -1,1 +1,7 @@
-<trigger keyword="@string/perfect_voice_hook" />
+<trigger command="REMEMBER_THIS" >
+
+    <constraints
+        camera="true"
+        microphone="true" />
+
+</trigger>

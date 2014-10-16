@@ -34,19 +34,19 @@ public abstract class Storable implements Serializable{
 	 */
 	private static final long serialVersionUID = 1L;
 	@Expose
-	public final String id;
+	public final String uuid;
 	
 	@Expose
 	public final Date ts;
 	
 	@Expose
-	public boolean dirty = true;
+	public boolean dirty = false;
 	
 	@Expose
 	public final String objecttype;
 	
 	protected Storable(String objecttype){
-		this.id = UUID.randomUUID().toString();
+		this.uuid = UUID.randomUUID().toString();
 		this.ts = new Date();
 		this.objecttype = objecttype;
 	}

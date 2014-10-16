@@ -114,6 +114,7 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 		switch (item.getItemId()) {
 		case R.id.keep_clip_mi:
 			mClipService.saveClip(outputFile.getAbsolutePath(), mPreview);
+			mCleanup = false;
 			finish();
 			break;
 		case R.id.replay_clip_mi:
@@ -177,7 +178,7 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 
 
 	private MediaRecorder mRec;
-
+	private static final String LTAG = ClipCaptureActivity.class.getSimpleName();
 
 
 	private synchronized void destroy(){
@@ -195,10 +196,18 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 		if(mSurface != null && mSurface.isValid()){
 			mSurface.release();
 		}
-
+		
+		if(mCleanup){
+			if(outputFile != null && outputFile.exists()){
+				Log.i(LTAG, "Cleaning up "+outputFile.getAbsolutePath());
+				if(!outputFile.delete()){
+					throw new RuntimeException("Could not delete output file "+outputFile.getAbsolutePath());
+				}
+			}
+		}
 	}
 
-
+	private boolean mCleanup = true;
 	@Override
 	public void onSurfaceTextureAvailable(SurfaceTexture texture, int width,
 			int height) {
@@ -220,15 +229,14 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 
 		try {
 			if (!outputFile.createNewFile()) {
-				Log.e(getClass().getSimpleName(), outputFile
-						+ " already exists...");
-				// TODO: deal with this "unlikely" error... maybe
+				throw new RuntimeException(outputFile.getAbsolutePath()+" already exists!");
 			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 		mRec.setOutputFile(outputFile.getAbsolutePath());
-
+		mCleanup = true;
+		
 		Log.i(getClass().getSimpleName(), "Output path is " + outputFile);
 		mRec.setOnInfoListener(this);
 		am.playSoundEffect(Sounds.SELECTED);

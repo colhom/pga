@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 
+import com.google.android.glass.media.Sounds;
 import com.google.android.glass.timeline.LiveCard;
 import com.google.android.glass.timeline.LiveCard.PublishMode;
 import com.repco.perfect.glassapp.storage.Chapter;
@@ -111,7 +112,7 @@ public class ClipService extends Service {
 		ht.start();
 		mStorageReplyHandler = new Handler(ht.getLooper(), mReplyCallback);
 		mStorageReplyMessenger = new Messenger(mStorageReplyHandler);
-
+		mAudio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 	}
 
 	private final Handler.Callback mReplyCallback = new Handler.Callback() {
@@ -124,17 +125,20 @@ public class ClipService extends Service {
 			switch (msg.what) {
 			case StorageHandler.RECEIVE_ACTIVE_CHAPTER:
 				Chapter active = (Chapter) msg.obj;
-
-				Intent previewIntent = new Intent(ClipService.this,
-						ClipPreviewActivity.class);
-				previewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-						| Intent.FLAG_ACTIVITY_CLEAR_TASK);
-				Bundle args = new Bundle();
-				args.putSerializable("chapter", active);
-				previewIntent.putExtras(args);
-				startActivity(previewIntent);
-				delivered = true;
+				if(active == null || active.clips.isEmpty()){
+					mAudio.playSoundEffect(Sounds.DISALLOWED);
+				}else{
+					Intent previewIntent = new Intent(ClipService.this,
+							ClipPreviewActivity.class);
+					previewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+							| Intent.FLAG_ACTIVITY_CLEAR_TASK);
+					Bundle args = new Bundle();
+					args.putSerializable("chapter", active);
+					previewIntent.putExtras(args);
+					startActivity(previewIntent);
+				}
 				Log.i(LTAG, "GET_ACTIVE_CHAPTER delivered");
+				delivered = true;
 				break;
 			default:
 				break;
@@ -144,13 +148,12 @@ public class ClipService extends Service {
 		}
 	};
 
+	private AudioManager mAudio;
 	public class ClipServiceBinder extends Binder {
 
 		public void stop() {
 			ClipService.this.stopSelf();
 		}
-
-		public AudioManager mAudio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 
 		public void recordClip() {
 
@@ -178,8 +181,8 @@ public class ClipService extends Service {
 						previewFile));
 
 				Clip clip = new Clip(outputPath, previewFile.getAbsolutePath());
-
-				sendMessage(StorageHandler.PUSH_CLIP, clip);
+				clip.dirty = true;
+				sendStorageMessage(StorageHandler.PUSH_CLIP, clip);
 
 				updateDash();
 
@@ -187,8 +190,21 @@ public class ClipService extends Service {
 				throw new RuntimeException(e);
 			}
 		}
+		
+		public void publishChapter(Chapter chapter){
+			if(chapter == null || chapter.clips.size() < 3){
+				
+				//TODO: explain why
+				mAudio.playSoundEffect(Sounds.DISALLOWED);
+			
+			}else{
+				sendStorageMessage(StorageHandler.END_CHAPTER, chapter);
+				mAudio.playSoundEffect(Sounds.SUCCESS);
+			}
+		}
+		
 
-		public void sendMessage(int what, Object obj) {
+		public void sendStorageMessage(int what, Object obj) {
 			Message msg = Message.obtain();
 			msg.what = what;
 			msg.obj = obj;

@@ -10,4 +10,7 @@
     <string name="preview_chapter_text">Preview Chapter</string>
     <string name="provider_type">com.repco.perfect.glassapp.contentProvider</string>
     <string name="account_type">com.repco.perfect.glassapp.accountType</string>
+    
+    <string name="publish_chapter_mi_text">Publish</string>
+    <string name="exit_preview_mi_text">Close</string>
 </resources>

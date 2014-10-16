@@ -1,10 +1,10 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android" >
 
     <item
-        android:id="@+id/record_clip_item"
-        android:title="@string/record_clip_text"/>
+        android:id="@+id/publish_chapter_item"
+        android:title="@string/publish_chapter_mi_text"/>
     <item
-        android:id="@+id/stop_service_item"
-        android:title="@string/stop_service_text"/>
+        android:id="@+id/exit_preview_item"
+        android:title="@string/exit_preview_mi_text"/>
 
 </menu>

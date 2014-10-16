@@ -27,11 +27,11 @@ import android.text.GetChars;
 import android.util.Log;
 
 public class StorageHandler extends SQLiteOpenHelper {
-	public static final int MIN_CHAPTER_SIZE = 5;
+	public static final int MIN_CHAPTER_SIZE = 3;
 	public static final int PUSH_CLIP = 0, GET_CHAPTERS = 1,
 			RECEIVE_CHAPTERS = 2, GET_ACTIVE_CHAPTER = 3,
 			RECEIVE_ACTIVE_CHAPTER = 4, END_CHAPTER = 5, GET_NEXT_STORABLE = 6,
-			RECEIVE_NEXT_STORABLE = 7, PUSH_STORABLE=8;
+			RECEIVE_NEXT_STORABLE = 7, PUSH_STORABLE = 8;
 
 	private static String DB_NAME = "PerfectDB";
 	private static int DB_VERSION = 1;
@@ -87,13 +87,15 @@ public class StorageHandler extends SQLiteOpenHelper {
 					break;
 				case END_CHAPTER:
 					active = getActiveChapter();
-					if (active != null
-							&& active.clips.size() < MIN_CHAPTER_SIZE) {
+
+					if (active.clips.size() < MIN_CHAPTER_SIZE) {
 						System.err.println("END_CHAPTER with clip count "
 								+ active.clips.size() + " minimum size is "
 								+ MIN_CHAPTER_SIZE);
 						delivered = false;
 					} else {
+						active.dirty = true;
+						upsertRow(active);
 						upsertRow(new Chapter());
 						delivered = true;
 						requestSync();
@@ -119,12 +121,12 @@ public class StorageHandler extends SQLiteOpenHelper {
 					reply = Message.obtain(null, RECEIVE_NEXT_STORABLE, next);
 					delivered = true;
 					break;
-					
+
 				case PUSH_STORABLE:
 					Storable storable = (Storable) msg.obj;
-					Log.i(LTAG,"Push Storable: "+storable);
+					Log.i(LTAG, "Push Storable: " + storable);
 					upsertRow(storable);
-					delivered=true;
+					delivered = true;
 				default:
 					break;
 				}
@@ -209,7 +211,7 @@ public class StorageHandler extends SQLiteOpenHelper {
 		Cursor c = null;
 		boolean exists;
 		try {
-			c = mDb.rawQuery(String.format(selectOne, row.id), null);
+			c = mDb.rawQuery(String.format(selectOne, row.uuid), null);
 			exists = c.moveToFirst();
 		} finally {
 			if (c != null) {
@@ -219,7 +221,7 @@ public class StorageHandler extends SQLiteOpenHelper {
 		Log.i(LTAG, "upsertRow : " + row + " --> exists : " + exists);
 
 		ContentValues cv = new ContentValues();
-		cv.put(ID_KEY, row.id);
+		cv.put(ID_KEY, row.uuid);
 		cv.put(TYPE_KEY, row.getClass().getName());
 		cv.put(JSON_DATA_KEY, row.getJSONData());
 		cv.put(TS_DATA_KEY, row.ts.getTime());
@@ -228,16 +230,17 @@ public class StorageHandler extends SQLiteOpenHelper {
 		Log.i(LTAG, cv.toString());
 		if (exists) {
 			int rowsAffected = mDb.update(TABLE_NAME, cv, ID_KEY + "=?",
-					new String[] { row.id });
+					new String[] { row.uuid });
 
 			Log.i(LTAG, "upsertRow update " + rowsAffected + " rows affected");
-			if (BuildConfig.DEBUG && rowsAffected != 1){
-				throw new RuntimeException("upsertRow update affects "+rowsAffected+" rows, should be 1");
+			if (BuildConfig.DEBUG && rowsAffected != 1) {
+				throw new RuntimeException("upsertRow update affects "
+						+ rowsAffected + " rows, should be 1");
 			}
 		} else {
 			long rowId = mDb.insert(TABLE_NAME, null, cv);
 			Log.i(LTAG, "upsertRow insert return rowid " + rowId);
-			if (BuildConfig.DEBUG && rowId == -1){
+			if (BuildConfig.DEBUG && rowId == -1) {
 				throw new RuntimeException("upsertRow insert returns id = -1");
 			}
 		}
@@ -290,7 +293,7 @@ public class StorageHandler extends SQLiteOpenHelper {
 	private Storable getNextStorable() {
 		Cursor c = null;
 		try {
-			c = mDb.query(TABLE_NAME, null, DIRTY_KEY + "=1",null, null, null,
+			c = mDb.query(TABLE_NAME, null, DIRTY_KEY + "=1", null, null, null,
 					TS_DATA_KEY + " DESC", "1");
 			if (c.moveToFirst()) {
 				return unmarshalStorable(c);

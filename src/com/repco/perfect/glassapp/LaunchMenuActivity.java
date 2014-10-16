@@ -31,7 +31,7 @@ public class LaunchMenuActivity extends BaseBoundServiceActivity {
 			mClipService.recordClip();
 			break;
 		case R.id.preview_chapter_item:
-			mClipService.sendMessage(StorageHandler.GET_ACTIVE_CHAPTER, null);
+			mClipService.sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER, null);
 			break;
 		case R.id.stop_service_item:
 			mClipService.stop();
