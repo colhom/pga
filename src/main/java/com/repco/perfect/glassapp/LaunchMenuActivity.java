@@ -27,9 +27,6 @@ public class LaunchMenuActivity extends BaseBoundServiceActivity {
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch(item.getItemId()){
-		case R.id.record_clip_item:
-			mClipService.recordClip();
-			break;
 		case R.id.preview_chapter_item:
 			mClipService.sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER, null);
 			break;

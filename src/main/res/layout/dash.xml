@@ -2,16 +2,19 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:layout_marginLeft="@dimen/glass_card_margin"
+    android:layout_marginRight="@dimen/glass_card_margin"
+    android:layout_marginTop="@dimen/glass_card_margin"
     android:background="@android:color/black"
     >
-    
     <TextView 
         android:id="@+id/dash_main"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:layout_gravity="center"
         android:textAppearance="?android:attr/textAppearanceMedium"
         />
+
     
     
 </FrameLayout>
