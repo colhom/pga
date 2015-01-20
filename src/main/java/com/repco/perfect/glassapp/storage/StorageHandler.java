@@ -45,7 +45,6 @@ public class StorageHandler extends SQLiteOpenHelper {
 		super(context, DB_NAME, null, DB_VERSION);
 
 		mDb = getWritableDatabase();
-		// TODO:start sync thread
 
 		HandlerThread ht = new HandlerThread("StorageHandler");
 		ht.start();
