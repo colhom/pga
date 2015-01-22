@@ -30,3 +30,5 @@ local.properties
 ehthumbs.db
 Thumbs.db
 *.log
+/.gradle/
+/perfectGlassApp/build/
