@@ -1,15 +1,13 @@
 package com.repco.perfect.glassapp.storage;
 
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Random;
 
 import com.repco.perfect.glassapp.BuildConfig;
 import com.repco.perfect.glassapp.ClipService;
 import com.repco.perfect.glassapp.base.Storable;
-import com.repco.perfect.glassapp.sync.SyncService;
 
-import android.accounts.Account;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
@@ -17,13 +15,11 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Handler;
-import android.os.Handler.Callback;
 import android.os.Bundle;
 import android.os.HandlerThread;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
-import android.text.GetChars;
 import android.util.Log;
 
 public class StorageHandler extends SQLiteOpenHelper {
@@ -31,7 +27,7 @@ public class StorageHandler extends SQLiteOpenHelper {
 	public static final int PUSH_CLIP = 0, GET_CHAPTERS = 1,
 			RECEIVE_CHAPTERS = 2, GET_ACTIVE_CHAPTER = 3,
 			RECEIVE_ACTIVE_CHAPTER = 4, END_CHAPTER = 5, GET_NEXT_STORABLE = 6,
-			RECEIVE_NEXT_STORABLE = 7, PUSH_STORABLE = 8;
+			RECEIVE_NEXT_STORABLE = 7, PUSH_STORABLE = 8, RECEIVE_END_CHAPTER = 9;
 
 	private static String DB_NAME = "PerfectDB";
 	private static int DB_VERSION = 1;
@@ -72,11 +68,15 @@ public class StorageHandler extends SQLiteOpenHelper {
 
 					if (active == null) {
 						active = new Chapter();
+
 						Log.i(LTAG, "Creating new Chapter");
 					}
-
+                    if (active.ts.before(clip.ts)){
+                        active.ts = new Date(clip.ts.getTime() + 1000);
+                        Log.i(LTAG,"Set back active chapter ts to "+active.ts);
+                    }
 					active.clips.add(clip);
-
+                    active.dirty = true;
 					upsertRow(active);
 					delivered = true;
 					mDb.setTransactionSuccessful();
@@ -86,18 +86,20 @@ public class StorageHandler extends SQLiteOpenHelper {
 					break;
 				case END_CHAPTER:
 					active = getActiveChapter();
-
+                    reply = Message.obtain(null,RECEIVE_END_CHAPTER);
 					if (active.clips.size() < MIN_CHAPTER_SIZE) {
 						System.err.println("END_CHAPTER with clip count "
 								+ active.clips.size() + " minimum size is "
 								+ MIN_CHAPTER_SIZE);
-						delivered = false;
+
 					} else {
 						active.dirty = true;
+                        active.userpublished = true;
 						upsertRow(active);
 						upsertRow(new Chapter());
 						delivered = true;
 						requestSync();
+                        reply.obj = active;
 					}
 					break;
 				case GET_CHAPTERS:
@@ -110,7 +112,8 @@ public class StorageHandler extends SQLiteOpenHelper {
 					Log.i(LTAG, "Get active chapter: " + active);
 					reply = Message
 							.obtain(null, RECEIVE_ACTIVE_CHAPTER, active);
-
+                    Boolean showPreview = (Boolean) msg.obj;
+                    reply.arg1 = showPreview ? 1 : 0;
 					delivered = true;
 					break;
 				case GET_NEXT_STORABLE:
@@ -161,12 +164,12 @@ public class StorageHandler extends SQLiteOpenHelper {
 
 	public static final String TABLE_NAME = "storables";
 	public static final String JSON_DATA_KEY = "data", TS_DATA_KEY = "ts",
-			ID_KEY = "uuid", TYPE_KEY = "type", DIRTY_KEY = "dirty";
+			UUID_KEY = "uuid", TYPE_KEY = "type", DIRTY_KEY = "dirty";
 
 	@Override
 	public void onCreate(SQLiteDatabase db) {
 
-		String createTable = "CREATE TABLE " + TABLE_NAME + " (" + ID_KEY
+		String createTable = "CREATE TABLE " + TABLE_NAME + " (" + UUID_KEY
 				+ " TEXT PRIMARY KEY, " + JSON_DATA_KEY + " TEXT NOT NULL, "
 				+ TYPE_KEY + " TEXT NOT NULL, " + DIRTY_KEY
 				+ " INTEGER NOT NULL," + TS_DATA_KEY + " INTEGER NOT NULL"
@@ -201,26 +204,35 @@ public class StorageHandler extends SQLiteOpenHelper {
 	}
 
 	private static final String selectOne = "SELECT * FROM " + TABLE_NAME
-			+ " WHERE " + ID_KEY + "=\"%s\"";
+			+ " WHERE " + UUID_KEY + "=\"%s\"";
 
 	private static final String LTAG = StorageHandler.class.getSimpleName();
 
 	private void upsertRow(Storable row) {
 
-		Cursor c = null;
-		boolean exists;
-		try {
-			c = mDb.rawQuery(String.format(selectOne, row.uuid), null);
-			exists = c.moveToFirst();
-		} finally {
-			if (c != null) {
-				c.close();
-			}
-		}
+        Storable existing = getStorableByUUID(row.uuid);
+        Boolean exists = (existing != null);
 		Log.i(LTAG, "upsertRow : " + row + " --> exists : " + exists);
 
+        if (exists){
+            /**
+             * Makes sure that write backs for clean versions of storables
+             * don't overwrite new developments.
+             *
+             * Happens if a clip is added to active chapter in between sync receiving
+             * the dirty active chapter and sync writing back the clean active chapter.
+             *
+             * The ts on the write-back of the clean chapter row will be BEFORE the ts
+             * on the existing row, as ActiveChapters are always set to be AFTER the latest
+             * clip
+             */
+            if (existing.ts.after(row.ts)){
+                Log.w(LTAG,"ignoring upsert newer existing row with older incoming row:\nexisting: "+existing+"\nincoming: "+row);
+                return;
+            }
+        }
 		ContentValues cv = new ContentValues();
-		cv.put(ID_KEY, row.uuid);
+		cv.put(UUID_KEY, row.uuid);
 		cv.put(TYPE_KEY, row.getClass().getName());
 		cv.put(JSON_DATA_KEY, row.getJSONData());
 		cv.put(TS_DATA_KEY, row.ts.getTime());
@@ -228,7 +240,7 @@ public class StorageHandler extends SQLiteOpenHelper {
 
 		Log.i(LTAG, cv.toString());
 		if (exists) {
-			int rowsAffected = mDb.update(TABLE_NAME, cv, ID_KEY + "=?",
+			int rowsAffected = mDb.update(TABLE_NAME, cv, UUID_KEY + "=?",
 					new String[] { row.uuid });
 
 			Log.i(LTAG, "upsertRow update " + rowsAffected + " rows affected");
@@ -293,7 +305,7 @@ public class StorageHandler extends SQLiteOpenHelper {
 		Cursor c = null;
 		try {
 			c = mDb.query(TABLE_NAME, null, DIRTY_KEY + "=1", null, null, null,
-					TS_DATA_KEY + " DESC", "1");
+					TS_DATA_KEY + " ASC", "1");
 			if (c.moveToFirst()) {
 				return unmarshalStorable(c);
 			}
@@ -304,7 +316,20 @@ public class StorageHandler extends SQLiteOpenHelper {
 			}
 		}
 	}
-
+    private Storable getStorableByUUID(String uuid){
+        Cursor c = null;
+        try {
+            c = mDb.query(TABLE_NAME, null, UUID_KEY + "=?", new String[]{uuid}, null, null,null);
+            if (c.moveToFirst()) {
+                return unmarshalStorable(c);
+            }
+            return null;
+        } finally {
+            if (c != null) {
+                c.close();
+            }
+        }
+    }
 	private static Storable unmarshalStorable(Cursor c) {
 		String jsonData = c.getString(c.getColumnIndexOrThrow(JSON_DATA_KEY));
 		String type = c.getString(c.getColumnIndexOrThrow(TYPE_KEY));

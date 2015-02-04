@@ -16,6 +16,7 @@ import retrofit.mime.TypedString;
 import com.repco.perfect.glassapp.BuildConfig;
 import com.repco.perfect.glassapp.DevData;
 import com.repco.perfect.glassapp.base.Storable;
+import com.repco.perfect.glassapp.storage.Chapter;
 import com.repco.perfect.glassapp.storage.StorageHandler;
 import com.repco.perfect.glassapp.storage.StorageService;
 
@@ -64,6 +65,34 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	};
 
 	private CountDownLatch serviceBarrier;
+    private boolean syncStorable(Storable storable){
+        if (BuildConfig.DEBUG && !storable.dirty) {
+            throw new RuntimeException(
+                    "We got a clean storable in the SyncAdapter! "
+                            + storable);
+        }
+
+        Log.i(LTAG, "sync storable " + storable);
+
+
+        if(storable.doSync()){
+            Log.i(LTAG, "Sync successful, writing back storable");
+            storable.dirty = false;
+            Message storemsg = Message.obtain();
+            storemsg.what = StorageHandler.PUSH_STORABLE;
+            storemsg.obj = storable;
+
+            try {
+                mStorageMessenger.send(storemsg);
+            } catch (RemoteException e) {
+                throw new RuntimeException(e);
+            }
+            return true;
+        }else{
+            Log.w(LTAG,"Sync failed, will abort sync");
+            return false;
+        }
+    }
 
 	@Override
 	public void onPerformSync(Account account, Bundle extras, String authority,
@@ -90,7 +119,6 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		// TODO: this is gross, architect your software properly plz
 		final Semaphore syncBarrier = new Semaphore(1);
 		final CountDownLatch doneBarrier = new CountDownLatch(1);
-
 		final Handler.Callback mReplyCallback = new Handler.Callback() {
 
 			@Override
@@ -99,40 +127,19 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				Log.i(LTAG, "handleMessage " + msg.what);
 
 				switch (msg.what) {
-				case StorageHandler.RECEIVE_NEXT_STORABLE:
-					if (msg.obj == null) {
-						// this will end the sync, once syncBarrier is released
-						doneBarrier.countDown();
-					} else {
-						Storable storable = (Storable) msg.obj;
+                    case StorageHandler.RECEIVE_NEXT_STORABLE:
 
-						if (BuildConfig.DEBUG && !storable.dirty) {
-							throw new RuntimeException(
-									"We got a clean storable in the SyncAdapter! "
-											+ storable);
-						}
+                        if (msg.obj == null) {
+                            Log.i(LTAG, "receive next storable [null]");
+                            doneBarrier.countDown();
 
-						Log.i(LTAG, "sync storable " + storable);
-						
-						
-						if(storable.doSync()){
-							Log.i(LTAG, "Sync successful, writing back storable");
-							storable.dirty = false;
-							Message storemsg = Message.obtain();
-							storemsg.what = StorageHandler.PUSH_STORABLE;
-							storemsg.obj = storable;
+                        } else{
+                            Storable s = (Storable) msg.obj;
 
-							try {
-								mStorageMessenger.send(storemsg);
-							} catch (RemoteException e) {
-								throw new RuntimeException(e);
-							}
-						}else{
-							Log.w(LTAG,"Sync failed, will abort sync");
-							doneBarrier.countDown();
-						}
-					}
-
+                            if (!syncStorable(s)) {
+                                doneBarrier.countDown();
+                            }
+                        }
 					delivered = true;
 					break;
 				default:

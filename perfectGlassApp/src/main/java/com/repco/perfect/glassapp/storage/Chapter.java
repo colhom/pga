@@ -24,7 +24,10 @@ public final class Chapter extends Storable {
 
 	@Expose
 	public final List<Clip> clips;
-	
+
+    @Expose
+    public boolean userpublished = false;
+
 	public Chapter() {
 		super("chapter");
 		this.clips = new ArrayList<Clip>();
@@ -32,7 +35,7 @@ public final class Chapter extends Storable {
 
 	@Override
 	protected Response makeSyncRequest() throws RetrofitError {
-		
+
 		return chapterService.postSyncData(new TypedString(getJSONData()), new TypedString(DevData.GOOGLE_ID));
 	}
 

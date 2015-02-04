@@ -37,8 +37,11 @@ public abstract class Storable implements Serializable{
 	public final String uuid;
 	
 	@Expose
-	public final Date ts;
-	
+	public Date ts;
+
+    @Expose
+    public Date creationts;
+
 	@Expose
 	public boolean dirty = false;
 	
@@ -48,6 +51,7 @@ public abstract class Storable implements Serializable{
 	protected Storable(String objecttype){
 		this.uuid = UUID.randomUUID().toString();
 		this.ts = new Date();
+        this.creationts = new Date();
 		this.objecttype = objecttype;
 	}
 	
@@ -102,9 +106,11 @@ public abstract class Storable implements Serializable{
 	protected abstract Response makeSyncRequest() throws RetrofitError;
 	
 	@Override
-	public String toString(){
-		return mPrettyGson.toJson(this);
-	}
+    public String toString() { return uuid+" ("+objecttype+") "+ts;};
+
+    public String jsonString(){
+        return mPrettyGson.toJson(this);
+    }
 	
 	
 }

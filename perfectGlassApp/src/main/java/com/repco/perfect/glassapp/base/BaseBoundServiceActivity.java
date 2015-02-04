@@ -30,7 +30,9 @@ public abstract class BaseBoundServiceActivity extends Activity {
 	@Override
 	protected void onStart() {
 		super.onStart();
-		if(!bindService(new Intent(this,ClipService.class), mServiceConnection, 0)){
+        Intent service = new Intent(this,ClipService.class);
+        startService(service);
+		if(!bindService(service, mServiceConnection,0)){
 			throw new RuntimeException("Couldn't bind to ClipService");
 		}
 	}

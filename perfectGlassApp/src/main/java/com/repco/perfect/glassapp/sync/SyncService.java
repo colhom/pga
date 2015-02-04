@@ -10,15 +10,12 @@ import android.os.IBinder;
 public class SyncService extends Service {
 	
 	private static SyncAdapter syncAdapter = null;
-	public static final Object syncAdapterLock = new Object();
 	@Override
 	public void onCreate() {
 		super.onCreate();
-		synchronized(SyncService.syncAdapterLock){
-			if(syncAdapter == null){
-				syncAdapter = new SyncAdapter(getApplicationContext(), true);
-			}
-		}
+		syncAdapter = new SyncAdapter(getApplicationContext(), true);
+
+
 	}
     @Override
     public IBinder onBind(Intent intent) {

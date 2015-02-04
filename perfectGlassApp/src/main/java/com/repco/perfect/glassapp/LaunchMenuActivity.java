@@ -28,7 +28,10 @@ public class LaunchMenuActivity extends BaseBoundServiceActivity {
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch(item.getItemId()){
 		case R.id.preview_chapter_item:
-			mClipService.sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER, null);
+            mClipService.previewChapter();
+            break;
+        case R.id.write_chapter_item:
+			mClipService.publishChapter();
 			break;
 		case R.id.stop_service_item:
 			mClipService.stop();

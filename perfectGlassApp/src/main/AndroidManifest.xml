@@ -45,22 +45,11 @@
             android:enabled="true"
             android:immersive="true"
             android:label="@string/app_name" >
-        </activity>
-        <activity
-            android:name="com.repco.perfect.glassapp.ClipPreviewActivity"
-            android:enabled="true"
-            android:immersive="true"
-            android:label="@string/app_name" >
-        </activity>
 
-        <service
-            android:name="com.repco.perfect.glassapp.ClipService"
-            android:enabled="true"
-            android:exported="true"
-            android:icon="@drawable/remember"
-            android:label="@string/app_name" >
             <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
                 <action android:name="com.google.android.glass.action.VOICE_TRIGGER" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
             <meta-data
@@ -69,6 +58,34 @@
             <meta-data
                 android:name="com.google.android.gms.version"
                 android:value="@integer/google_play_services_version" />
+        </activity>
+        <activity
+            android:name="com.repco.perfect.glassapp.ClipPreviewActivity"
+            android:enabled="true"
+            android:immersive="true"
+            android:label="@string/app_name" >
+        </activity>
+        <!--
+        <activity
+            android:name="com.repco.perfect.glassapp.ChapterPublishActivity"
+            android:enabled="true"
+            android:immersive="true"
+            android:label="@string/app_name" >
+
+            <intent-filter>
+                <data android:scheme="com.repco.perfect.glassapp.scheme" />
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        -->
+        <service
+            android:name="com.repco.perfect.glassapp.ClipService"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@drawable/remember"
+            android:label="@string/app_name" >
         </service>
         <service
             android:name="com.repco.perfect.glassapp.sync.SyncService"

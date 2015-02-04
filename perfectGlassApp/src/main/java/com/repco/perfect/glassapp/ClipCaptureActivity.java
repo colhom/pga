@@ -48,11 +48,16 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 		am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 		mTextureView = new TextureView(this);
 		setContentView(mTextureView);
-		
+		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 	}
 
+    @Override
+    protected void onDestroy() {
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        super.onDestroy();
+    }
 
-	@SuppressLint("TrulyRandom")
+    @SuppressLint("TrulyRandom")
 	private final SecureRandom rand = new SecureRandom();
 
 	File outputFile;

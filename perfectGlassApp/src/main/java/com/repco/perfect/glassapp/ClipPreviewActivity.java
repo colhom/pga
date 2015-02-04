@@ -18,6 +18,7 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.TextureView;
 import android.view.TextureView.SurfaceTextureListener;
+import android.view.WindowManager;
 import android.widget.ToggleButton;
 
 import com.google.android.glass.media.Sounds;
@@ -42,7 +43,7 @@ public class ClipPreviewActivity extends BaseBoundServiceActivity implements
 		mTextureView.setSurfaceTextureListener(this);
 		mPlayer = new MediaPlayer();
 		setContentView(mTextureView);
-		
+		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
 	}
 
@@ -57,6 +58,7 @@ public class ClipPreviewActivity extends BaseBoundServiceActivity implements
 		if (mPlayer != null) {
 			mPlayer.release();
 		}
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 	}
 
 	private Chapter mChapter = null;
@@ -124,7 +126,7 @@ public class ClipPreviewActivity extends BaseBoundServiceActivity implements
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.publish_chapter_item:
-			mClipService.publishChapter(mChapter);
+			mClipService.publishChapter();
 			finish();
 			break;
 		case R.id.exit_preview_item:
