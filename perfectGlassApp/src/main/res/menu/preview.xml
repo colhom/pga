@@ -2,9 +2,11 @@
 
     <item
         android:id="@+id/publish_chapter_item"
-        android:title="@string/publish_chapter_mi_text"/>
+        android:title="@string/publish_chapter_mi_text"
+        android:icon="@drawable/quill"/>
     <item
         android:id="@+id/exit_preview_item"
-        android:title="@string/exit_preview_mi_text"/>
+        android:title="@string/exit_preview_mi_text"
+        android:icon="@drawable/dismiss"/>
 
 </menu>

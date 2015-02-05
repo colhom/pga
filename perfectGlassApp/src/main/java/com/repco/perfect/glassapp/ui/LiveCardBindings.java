@@ -19,10 +19,8 @@ public class LiveCardBindings {
 	}
 
     static final String dashHtmlTemplate =
-
-            "<span>Your last chapter started <font color='blue'>%s</font></span><br/>" +
-            "<span>You have <font color='blue'>%d</font> clips</span><br/>";
-    static final String noClipsDashHtmlTemplate = "No chapter in progress";
+            "Your current <font color='#99cc33'>chapter</font> started <font color='#ddbb11'>%s</font>";
+    static final String noClipsDashHtmlTemplate = "Get started on a new chapter <font color='#99cc33'>today</font>?";
     public static void buildDashView(RemoteViews view,Chapter activeChapter){
         String html = null;
         if (activeChapter.clips.size() == 0){
@@ -31,10 +29,7 @@ public class LiveCardBindings {
             long chapterStart = activeChapter.clips.get(0).ts.getTime();
             long now = new Date().getTime();
             String diffString = DateUtils.getRelativeTimeSpanString(chapterStart,now,DateUtils.DAY_IN_MILLIS).toString();
-            html = String.format(dashHtmlTemplate,
-                    diffString,
-                    activeChapter.clips.size()
-                    );
+            html = String.format(dashHtmlTemplate,diffString);
         }
 
         setHTML(view,R.id.body_text, Html.fromHtml(html));
