@@ -112,8 +112,7 @@ public class StorageHandler extends SQLiteOpenHelper {
 					Log.i(LTAG, "Get active chapter: " + active);
 					reply = Message
 							.obtain(null, RECEIVE_ACTIVE_CHAPTER, active);
-                    Boolean showPreview = (Boolean) msg.obj;
-                    reply.arg1 = showPreview ? 1 : 0;
+                    reply.arg1 = msg.arg1;
 					delivered = true;
 					break;
 				case GET_NEXT_STORABLE:

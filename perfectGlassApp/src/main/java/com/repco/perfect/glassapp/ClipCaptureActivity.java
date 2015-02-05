@@ -98,6 +98,7 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 	@Override
 	protected void onStop() {
 		super.onStop();
+        closeOptionsMenu();
 		destroy();
 	}
 	private void resetRecorder() {

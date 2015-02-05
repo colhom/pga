@@ -68,7 +68,7 @@ public class ClipService extends Service {
 			Log.i(LTAG, "Storage service connection connected");
 			mStorageMessenger = new Messenger(binder);
             storageLatch.countDown();
-            sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,false);
+            sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null);
 		}
 	};
 
@@ -121,6 +121,8 @@ public class ClipService extends Service {
 		mStorageReplyMessenger = new Messenger(mStorageReplyHandler);
 		mAudio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 	}
+
+    public static final int CBID_CHAPTER_PREVIEW=1,CBID_LAUNCH_OPTIONS_MENU=2;
     private Intent mStorageIntent;
 	private final Handler.Callback mReplyCallback = new Handler.Callback() {
 
@@ -134,19 +136,27 @@ public class ClipService extends Service {
 			case StorageHandler.RECEIVE_ACTIVE_CHAPTER:
 				active = (Chapter) msg.obj;
                 updateDash(active);
-                if(msg.arg1 > 0) {
-                    if (active == null || active.clips.isEmpty()) {
-                        mAudio.playSoundEffect(Sounds.DISALLOWED);
-                    } else {
-                        Intent previewIntent = new Intent(ClipService.this,
-                                ClipPreviewActivity.class);
-                        previewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                                | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                        Bundle args = new Bundle();
-                        args.putSerializable("chapter", active);
-                        previewIntent.putExtras(args);
-                        startActivity(previewIntent);
-                    }
+                switch(msg.arg1) {
+                    case CBID_CHAPTER_PREVIEW:
+                        if (active == null || active.clips.isEmpty()) {
+                            mAudio.playSoundEffect(Sounds.DISALLOWED);
+                        } else {
+                            Intent previewIntent = new Intent(ClipService.this,
+                                    ClipPreviewActivity.class);
+                            previewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                                    | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                            Bundle args = new Bundle();
+                            args.putSerializable("chapter", active);
+                            previewIntent.putExtras(args);
+                            startActivity(previewIntent);
+                        }
+                        break;
+                    case CBID_LAUNCH_OPTIONS_MENU:
+
+                        break;
+                    default:
+
+                        break;
                 }
 				Log.i(LTAG, "GET_ACTIVE_CHAPTER delivered");
 				delivered = true;
@@ -157,7 +167,7 @@ public class ClipService extends Service {
                     mAudio.playSoundEffect(Sounds.DISALLOWED);
                 }else{
                     mAudio.playSoundEffect(Sounds.SUCCESS);
-                    sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,false);
+                    sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null);
                 }
                 break;
 			default:
@@ -195,7 +205,7 @@ public class ClipService extends Service {
 				Clip clip = new Clip(outputPath, previewFile.getAbsolutePath());
 				clip.dirty = true;
 				sendStorageMessage(StorageHandler.PUSH_CLIP, clip);
-                sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,false);
+                sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null);
 
 			} catch (FileNotFoundException e) {
 				throw new RuntimeException(e);
@@ -204,15 +214,18 @@ public class ClipService extends Service {
 
         public void publishChapter(){
             sendStorageMessage(StorageHandler.END_CHAPTER, null);
-            sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,false);
+            sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER, null);
         }
 
         public void previewChapter(){
-            sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,true);
+            sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null,CBID_CHAPTER_PREVIEW);
         }
 
 	}
-    public void sendStorageMessage(int what, Object obj) {
+    public void sendStorageMessage(int what,Object obj){
+        sendStorageMessage(what,obj,0);
+    }
+    public void sendStorageMessage(int what, Object obj, int cbId) {
         try {
             if (!storageLatch.await(15,TimeUnit.SECONDS)){
                 throw new RuntimeException("Timeout getting storageLatch");
@@ -223,6 +236,7 @@ public class ClipService extends Service {
         Message msg = Message.obtain();
         msg.what = what;
         msg.obj = obj;
+        msg.arg1 = cbId;
         msg.replyTo = mStorageReplyMessenger;
         try {
             mStorageMessenger.send(msg);
@@ -234,7 +248,7 @@ public class ClipService extends Service {
 		if (mLiveCard.isPublished()) {
 			mLiveCard.unpublish();
 		}
-        LiveCardBindings.buildDashView(mDashView,active);
+        LiveCardBindings.buildDashView(this,mDashView,active);
 
 		mLiveCard.setViews(mDashView);
 		mLiveCard.publish(PublishMode.SILENT);

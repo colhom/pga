@@ -1,5 +1,6 @@
 package com.repco.perfect.glassapp.ui;
 
+import android.content.Context;
 import android.text.Html;
 import android.text.Spanned;
 import android.text.format.DateUtils;
@@ -21,14 +22,14 @@ public class LiveCardBindings {
     static final String dashHtmlTemplate =
             "Your current <font color='#99cc33'>chapter</font> started <font color='#ddbb11'>%s</font>";
     static final String noClipsDashHtmlTemplate = "Get started on a new chapter <font color='#99cc33'>today</font>?";
-    public static void buildDashView(RemoteViews view,Chapter activeChapter){
+    public static void buildDashView(Context c,RemoteViews view,Chapter activeChapter){
         String html = null;
         if (activeChapter.clips.size() == 0){
             html = noClipsDashHtmlTemplate;
         }else {
             long chapterStart = activeChapter.clips.get(0).ts.getTime();
             long now = new Date().getTime();
-            String diffString = DateUtils.getRelativeTimeSpanString(chapterStart,now,DateUtils.DAY_IN_MILLIS).toString();
+            String diffString = DateUtils.getRelativeDateTimeString(c,chapterStart,DateUtils.DAY_IN_MILLIS,DateUtils.WEEK_IN_MILLIS,0).toString().split(",")[0];
             html = String.format(dashHtmlTemplate,diffString);
         }
 
