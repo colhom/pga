@@ -9,19 +9,36 @@ import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
 public abstract class BaseBoundServiceActivity extends Activity {
-	protected ClipService.ClipServiceBinder mClipService;
+	private ClipService.ClipServiceBinder mClipService;
+    private CountDownLatch mServiceLatch;
+
+    protected ClipService.ClipServiceBinder getClipService(){
+        try {
+            if(!mServiceLatch.await(10, TimeUnit.SECONDS)){
+                throw new RuntimeException("Timed out waiting for clip service");
+            }
+        }catch(InterruptedException e){
+            e.printStackTrace();
+            finish();
+        }
+        return mClipService;
+    }
 	protected ServiceConnection mServiceConnection = new ServiceConnection() {
 		
 		@Override
 		public void onServiceDisconnected(ComponentName arg0) {
-
+            mServiceLatch = new CountDownLatch(1);
 		}
 		
 		@Override
 		public void onServiceConnected(ComponentName name, IBinder service) {
 			if(service instanceof ClipService.ClipServiceBinder){
 				mClipService = (ClipService.ClipServiceBinder) service;
+                mServiceLatch.countDown();
 				onClipServiceConnected();
 			}
 		}
@@ -30,6 +47,7 @@ public abstract class BaseBoundServiceActivity extends Activity {
 	@Override
 	protected void onStart() {
 		super.onStart();
+        mServiceLatch = new CountDownLatch(1);
         Intent service = new Intent(this,ClipService.class);
         startService(service);
 		if(!bindService(service, mServiceConnection,0)){

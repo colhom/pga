@@ -126,7 +126,7 @@ public class ClipPreviewActivity extends BaseBoundServiceActivity implements
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.publish_chapter_item:
-			mClipService.publishChapter();
+			getClipService().publishChapter();
 			finish();
 			break;
 		case R.id.exit_preview_item:

@@ -29,7 +29,7 @@ public class LiveCardBindings {
         }else {
             long chapterStart = activeChapter.clips.get(0).ts.getTime();
             long now = new Date().getTime();
-            String diffString = DateUtils.getRelativeDateTimeString(c,chapterStart,DateUtils.DAY_IN_MILLIS,DateUtils.WEEK_IN_MILLIS,0).toString().split(",")[0];
+            String diffString = DateUtils.getRelativeDateTimeString(c,chapterStart,DateUtils.MINUTE_IN_MILLIS,DateUtils.WEEK_IN_MILLIS,0).toString().split(",")[0];
             html = String.format(dashHtmlTemplate,diffString);
         }
 

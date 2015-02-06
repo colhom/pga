@@ -119,7 +119,7 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.keep_clip_mi:
-			mClipService.saveClip(outputFile.getAbsolutePath(), mPreview);
+			getClipService().saveClip(outputFile.getAbsolutePath(), mPreview);
 			mCleanup = false;
 			finish();
 			break;

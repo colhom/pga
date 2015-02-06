@@ -36,6 +36,7 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
+import android.text.format.DateUtils;
 import android.util.Log;
 import android.view.Display;
 import android.view.WindowManager;
@@ -49,7 +50,7 @@ public class ClipService extends Service {
 	private Messenger mStorageMessenger;
 	private Messenger mStorageReplyMessenger;
 	private Handler mStorageReplyHandler;
-
+    private Handler mDashHandler = new Handler();
 
 	public static  String AUTHORITY,ACCOUNT_TYPE;
 	public static final String ACCOUNT_NAME = "dummy_perfect_account";
@@ -69,6 +70,7 @@ public class ClipService extends Service {
 			mStorageMessenger = new Messenger(binder);
             storageLatch.countDown();
             sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null);
+            mDashHandler.post(mDashUpdateRunnable);
 		}
 	};
 
@@ -121,11 +123,24 @@ public class ClipService extends Service {
 		mStorageReplyMessenger = new Messenger(mStorageReplyHandler);
 		mAudio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 	}
+    private static final long UPDATE_DASH_DELAY = 30 * DateUtils.SECOND_IN_MILLIS;
+
+    private boolean isStopped = false;
+    private Runnable mDashUpdateRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if(isStopped){
+                return;
+            }
+            updateDash();
+            mDashHandler.postDelayed(this,UPDATE_DASH_DELAY);
+        }
+    };
 
     public static final int CBID_CHAPTER_PREVIEW=1,CBID_LAUNCH_OPTIONS_MENU=2;
+
     private Intent mStorageIntent;
 	private final Handler.Callback mReplyCallback = new Handler.Callback() {
-
 		@Override
 		public boolean handleMessage(Message msg) {
 			boolean delivered = false;
@@ -133,45 +148,47 @@ public class ClipService extends Service {
 			Log.d(LTAG, "handleMessage " + msg.what);
             Chapter active;
 			switch (msg.what) {
-			case StorageHandler.RECEIVE_ACTIVE_CHAPTER:
-				active = (Chapter) msg.obj;
-                updateDash(active);
-                switch(msg.arg1) {
-                    case CBID_CHAPTER_PREVIEW:
-                        if (active == null || active.clips.isEmpty()) {
-                            mAudio.playSoundEffect(Sounds.DISALLOWED);
-                        } else {
-                            Intent previewIntent = new Intent(ClipService.this,
-                                    ClipPreviewActivity.class);
-                            previewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                                    | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                            Bundle args = new Bundle();
-                            args.putSerializable("chapter", active);
-                            previewIntent.putExtras(args);
-                            startActivity(previewIntent);
-                        }
-                        break;
-                    case CBID_LAUNCH_OPTIONS_MENU:
 
-                        break;
-                    default:
+                case StorageHandler.RECEIVE_ACTIVE_CHAPTER:
+                    active = (Chapter) msg.obj;
+                    mCachedActive = active;
+                    updateDash();
+                    switch(msg.arg1) {
+                        case CBID_CHAPTER_PREVIEW:
+                            if (active == null || active.clips.isEmpty()) {
+                                mAudio.playSoundEffect(Sounds.DISALLOWED);
+                            } else {
+                                Intent previewIntent = new Intent(ClipService.this,
+                                        ClipPreviewActivity.class);
+                                previewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                                        | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                Bundle args = new Bundle();
+                                args.putSerializable("chapter", active);
+                                previewIntent.putExtras(args);
+                                startActivity(previewIntent);
+                            }
+                            break;
+                        case CBID_LAUNCH_OPTIONS_MENU:
 
-                        break;
-                }
-				Log.i(LTAG, "GET_ACTIVE_CHAPTER delivered");
-				delivered = true;
-				break;
-            case StorageHandler.RECEIVE_END_CHAPTER:
-                active = (Chapter) msg.obj;
-                if (active == null){
-                    mAudio.playSoundEffect(Sounds.DISALLOWED);
-                }else{
-                    mAudio.playSoundEffect(Sounds.SUCCESS);
-                    sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null);
-                }
-                break;
-			default:
-				break;
+                            break;
+                        default:
+
+                            break;
+                    }
+                    Log.i(LTAG, "GET_ACTIVE_CHAPTER delivered");
+                    delivered = true;
+                    break;
+                case StorageHandler.RECEIVE_END_CHAPTER:
+                    active = (Chapter) msg.obj;
+                    if (active == null){
+                        mAudio.playSoundEffect(Sounds.DISALLOWED);
+                    }else{
+                        mAudio.playSoundEffect(Sounds.SUCCESS);
+                        sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null);
+                    }
+                    break;
+                default:
+                    break;
 			}
 
 			return delivered;
@@ -221,6 +238,10 @@ public class ClipService extends Service {
             sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null,CBID_CHAPTER_PREVIEW);
         }
 
+        public Chapter getCachedActiveChapter(){
+            return mCachedActive;
+        }
+
 	}
     public void sendStorageMessage(int what,Object obj){
         sendStorageMessage(what,obj,0);
@@ -244,14 +265,19 @@ public class ClipService extends Service {
             throw new RuntimeException(e);
         }
     }
-	private void updateDash(Chapter active) {
-		if (mLiveCard.isPublished()) {
-			mLiveCard.unpublish();
-		}
-        LiveCardBindings.buildDashView(this,mDashView,active);
+    private Chapter mCachedActive;
+	private void updateDash() {
+        if(mCachedActive == null){
+            return;
+        }
+
+        LiveCardBindings.buildDashView(this,mDashView,mCachedActive);
 
 		mLiveCard.setViews(mDashView);
-		mLiveCard.publish(PublishMode.SILENT);
+        if (!mLiveCard.isPublished()) {
+            mLiveCard.publish(PublishMode.SILENT);
+        }
+
 	}
 
 	private ClipServiceBinder mBinder;
@@ -290,6 +316,7 @@ public class ClipService extends Service {
 
 	@Override
 	public void onDestroy() {
+        isStopped = true;
 		if (mLiveCard != null && mLiveCard.isPublished()) {
 
 			mLiveCard.unpublish();
