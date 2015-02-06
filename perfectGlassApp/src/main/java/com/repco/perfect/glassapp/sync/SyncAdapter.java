@@ -60,11 +60,13 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		public void onServiceConnected(ComponentName name, IBinder service) {
 			Log.i(LTAG, "storage service connection connected");
 			mStorageMessenger = new Messenger(service);
+            doneBarrier = new CountDownLatch(1);
 			serviceBarrier.countDown();
 		}
 	};
 
 	private CountDownLatch serviceBarrier;
+    private CountDownLatch doneBarrier;
     private boolean syncStorable(Storable storable){
         if (BuildConfig.DEBUG && !storable.dirty) {
             throw new RuntimeException(
@@ -93,7 +95,34 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             return false;
         }
     }
+    private void finishSync(){
+        Log.i(LTAG,"finishSync()");
+        Message msg = Message.obtain();
+        msg.what = StorageHandler.CLEANUP_PUBLISHED_CHAPTERS;
+        try{
+            mStorageMessenger.send(msg);
+        }catch(RemoteException e){
+            throw new RuntimeException(e);
+        }
+        doneBarrier.countDown();
+        getContext().unbindService(mStorageConnection);
+    }
 
+
+    private void continueSync(){
+        Log.i(LTAG,"continueSync()");
+        Message msg = Message.obtain();
+        msg.what = StorageHandler.GET_NEXT_STORABLE;
+        msg.obj = null;
+        msg.replyTo = mStorageReplyMessenger;
+        try {
+            // this should result in in a release
+            mStorageMessenger.send(msg);
+        } catch (RemoteException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    private Messenger mStorageReplyMessenger;
 	@Override
 	public void onPerformSync(Account account, Bundle extras, String authority,
 			ContentProviderClient provider, SyncResult result) {
@@ -112,32 +141,35 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
 		if (connManager.isActiveNetworkMetered()) {
 			Log.i("LTAG",
-					"Active network connection is metetered, skipping sync");
+					"Active network connection is metered, skipping sync");
 			return;
 		}
 
+
+
 		// TODO: this is gross, architect your software properly plz
 		final Semaphore syncBarrier = new Semaphore(1);
-		final CountDownLatch doneBarrier = new CountDownLatch(1);
+		final Boolean done = false;
 		final Handler.Callback mReplyCallback = new Handler.Callback() {
 
 			@Override
 			public boolean handleMessage(Message msg) {
 				boolean delivered = false;
-				Log.i(LTAG, "handleMessage " + msg.what);
 
 				switch (msg.what) {
                     case StorageHandler.RECEIVE_NEXT_STORABLE:
-
+                        Log.i(LTAG,"RECEIVE NEXT STORABLE "+msg.obj);
                         if (msg.obj == null) {
                             Log.i(LTAG, "receive next storable [null]");
-                            doneBarrier.countDown();
+                            finishSync();
 
                         } else{
                             Storable s = (Storable) msg.obj;
 
                             if (!syncStorable(s)) {
-                                doneBarrier.countDown();
+                                finishSync();
+                            }else{
+                                continueSync();
                             }
                         }
 					delivered = true;
@@ -147,18 +179,16 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					break;
 
 				}
-				Log.i(LTAG, "releasing sync barrier");
-				syncBarrier.release();
 				return delivered;
 			}
 		};
 
-		HandlerThread ht = new HandlerThread("StorageReplyHandler");
-		ht.start();
-		Handler mStorageReplyHandler = new Handler(ht.getLooper(),
-				mReplyCallback);
-		final Messenger mStorageReplyMessenger = new Messenger(
-				mStorageReplyHandler);
+        HandlerThread ht = new HandlerThread("StorageReplyHandler");
+        ht.start();
+        Handler storageReplyHandler = new Handler(ht.getLooper(),
+                mReplyCallback);
+        mStorageReplyMessenger = new Messenger(
+                storageReplyHandler);
 
 		serviceBarrier = new CountDownLatch(1);
 		if (!getContext().bindService(
@@ -173,33 +203,15 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			throw new RuntimeException(e1);
 		}
 
-		while (doneBarrier.getCount() != 0) {
-			try {
-				// will block here waiting for RECEIVE_NEXT_STORABLE message
-				syncBarrier.acquire();
+        continueSync();
+        Log.i(LTAG,"onPerformSync() synced started, awaiting doneBarrier");
 
-			} catch (InterruptedException e) {
-				Log.w(LTAG, "SyncBarrier interrupted, aborting sync");
-				e.printStackTrace();
-				break;
-			}
-			Message msg = Message.obtain();
-			msg.what = StorageHandler.GET_NEXT_STORABLE;
-			msg.obj = null;
-			msg.replyTo = mStorageReplyMessenger;
-			try {
-				// this should result in in a release
-				mStorageMessenger.send(msg);
-			} catch (RemoteException e) {
-				throw new RuntimeException(e);
-			}
-
-		}
-		
-		Log.i(LTAG,"performSync() cleaning up");
-		// Cleanup
-		getContext().unbindService(mStorageConnection);
-
+        try{
+            doneBarrier.await();
+        }catch(InterruptedException e){
+            throw new RuntimeException(e);
+        }
+        Log.i(LTAG,"onPerformSync() returning");
 	}
 
 

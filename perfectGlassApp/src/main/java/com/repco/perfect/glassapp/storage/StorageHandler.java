@@ -24,10 +24,10 @@ import android.util.Log;
 
 public class StorageHandler extends SQLiteOpenHelper {
 	public static final int MIN_CHAPTER_SIZE = 3;
-	public static final int PUSH_CLIP = 0, GET_CHAPTERS = 1,
-			RECEIVE_CHAPTERS = 2, GET_ACTIVE_CHAPTER = 3,
+	public static final int PUSH_CLIP = 0, GET_ACTIVE_CHAPTER = 3,
 			RECEIVE_ACTIVE_CHAPTER = 4, END_CHAPTER = 5, GET_NEXT_STORABLE = 6,
-			RECEIVE_NEXT_STORABLE = 7, PUSH_STORABLE = 8, RECEIVE_END_CHAPTER = 9;
+			RECEIVE_NEXT_STORABLE = 7, PUSH_STORABLE = 8, RECEIVE_END_CHAPTER = 9,
+            CLEANUP_PUBLISHED_CHAPTERS = 10;
 
 	private static String DB_NAME = "PerfectDB";
 	private static int DB_VERSION = 1;
@@ -88,7 +88,7 @@ public class StorageHandler extends SQLiteOpenHelper {
 					active = getActiveChapter();
                     reply = Message.obtain(null,RECEIVE_END_CHAPTER);
 					if (active.clips.size() < MIN_CHAPTER_SIZE) {
-						System.err.println("END_CHAPTER with clip count "
+						Log.e(LTAG,"END_CHAPTER with clip count "
 								+ active.clips.size() + " minimum size is "
 								+ MIN_CHAPTER_SIZE);
 
@@ -102,11 +102,7 @@ public class StorageHandler extends SQLiteOpenHelper {
                         reply.obj = active;
 					}
 					break;
-				case GET_CHAPTERS:
-					List<Chapter> chapters = getChapters();
-					reply = Message.obtain(null, RECEIVE_CHAPTERS, chapters);
-					delivered = true;
-					break;
+
 				case GET_ACTIVE_CHAPTER:
 					active = getActiveChapter();
 					Log.i(LTAG, "Get active chapter: " + active);
@@ -128,12 +124,18 @@ public class StorageHandler extends SQLiteOpenHelper {
 					Log.i(LTAG, "Push Storable: " + storable);
 					upsertRow(storable);
 					delivered = true;
+                    break;
+                case CLEANUP_PUBLISHED_CHAPTERS:
+                    cleanupPublishedChapters();
+                    delivered = true;
+                    break;
 				default:
 					break;
 				}
 
 				if (reply != null) {
 					try {
+                        reply.replyTo = mMessenger;
 						msg.replyTo.send(reply);
 					} catch (RemoteException e) {
 						Log.e("StorageHandler", "could not send reply: "
@@ -257,21 +259,26 @@ public class StorageHandler extends SQLiteOpenHelper {
 
 	}
 
-	private static final String selectChapters = "SELECT * FROM " + TABLE_NAME
-			+ " WHERE " + TYPE_KEY + "=\"%s\" ORDER BY " + TS_DATA_KEY + " ASC";
+    private int deleteStorable(Storable s){
+        int affected = mDb.delete(TABLE_NAME,UUID_KEY+"=?",new String[]{s.uuid});
+        if(affected != 1){
+            Log.e(LTAG,"DELETE STORABLE "+s.uuid+" returns affected count of "+affected);
+        }
+        return affected;
+    }
 
-	private List<Chapter> getChapters() {
-		String sql = String.format(selectChapters, Chapter.class.getName());
+	private List<Chapter> getChapters(boolean dirty) {
 
+        String selection = String.format("%s=? AND %s=?",TYPE_KEY,DIRTY_KEY);
 		Cursor c = null;
 		try {
-			c = mDb.rawQuery(sql, null);
+			c = mDb.query(TABLE_NAME,null,selection,new String[]{Chapter.class.getName(), (dirty ? "1" : "0")},null,null,null);
 
 			List<Chapter> chapters = new LinkedList<Chapter>();
 
 			while (c.moveToNext()) {
-
-				chapters.add((Chapter) unmarshalStorable(c));
+                Chapter chapter = (Chapter) unmarshalStorable(c);
+				chapters.add(chapter);
 			}
 
 			return chapters;
@@ -281,6 +288,27 @@ public class StorageHandler extends SQLiteOpenHelper {
 			}
 		}
 	}
+
+    private void cleanupPublishedChapters(){
+        int chapterCount = 0;
+        int clipCount = 0;
+        Log.i(LTAG,"Cleaning up chapters");
+        for(Chapter chapter : getChapters(false)){
+            if(!chapter.userpublished){
+                continue;
+            }
+            if(chapter.doCleanup()){
+                Log.i(LTAG,"Delete chapter "+chapter.uuid+" from database!");
+                for(Clip clip : chapter.clips){
+                    Log.i(LTAG,"Delete clip "+clip.uuid+" from database");
+                    clipCount += deleteStorable(clip);
+                }
+                chapterCount += deleteStorable(chapter);
+            }
+
+        }
+        Log.i(LTAG,"cleanup published chapters removed "+chapterCount+" chapters and "+clipCount+" clips");
+    }
 
 	private Chapter getActiveChapter() {
 		Cursor c = null;

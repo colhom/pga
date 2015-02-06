@@ -104,7 +104,7 @@ public abstract class Storable implements Serializable{
 	}
 	
 	protected abstract Response makeSyncRequest() throws RetrofitError;
-	
+	protected abstract boolean doCleanup();
 	@Override
     public String toString() { return uuid+" ("+objecttype+") "+ts;};
 

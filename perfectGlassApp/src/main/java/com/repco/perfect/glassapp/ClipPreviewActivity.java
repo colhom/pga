@@ -78,7 +78,7 @@ public class ClipPreviewActivity extends BaseBoundServiceActivity implements
 		MediaPlayer.OnCompletionListener trigger = new OnCompletionListener() {
 			@Override
 			public void onCompletion(MediaPlayer mp) {
-				System.out.println("OnCompletion " + clips.size());
+				Log.i(LTAG,"OnCompletion " + clips.size());
 				Clip clip;
 
 				clip = clips.poll();

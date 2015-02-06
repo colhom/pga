@@ -93,7 +93,7 @@ public class ClipService extends Service {
 			ContentResolver.setSyncAutomatically(ACCOUNT, AUTHORITY, true);
 			if (!accountManager.addAccountExplicitly(ACCOUNT, null, null)) {
 
-				System.err.println("Add account failed!");
+				Log.e(LTAG,"Add account failed!");
 			}
 		}else if(accounts.length == 1){
 			Log.i(LTAG,"Using existing account");

@@ -15,6 +15,7 @@ import retrofit.http.Part;
 import retrofit.mime.TypedFile;
 import retrofit.mime.TypedString;
 import android.database.sqlite.SQLiteDatabase;
+import android.util.Log;
 
 import com.google.gson.annotations.Expose;
 import com.repco.perfect.glassapp.DevData;
@@ -39,8 +40,23 @@ public final class Chapter extends Storable {
 		return chapterService.postSyncData(new TypedString(getJSONData()), new TypedString(DevData.GOOGLE_ID));
 	}
 
-	
-	private static final ChapterService chapterService = storableAdatper.create(ChapterService.class);
+    @Override
+    protected boolean doCleanup() {
+        boolean noError = true;
+        for(Clip clip : clips){
+            noError = clip.doCleanup() && noError;
+        }
+        if(!noError){
+            Log.e(LTAG, "Cleanup chapter " + uuid + " failed! Will be retried");
+        }else{
+            Log.i(LTAG,"Cleanup chapter "+uuid+" completed!");
+        }
+        return noError;
+
+    }
+
+
+    private static final ChapterService chapterService = storableAdatper.create(ChapterService.class);
 	
 	private interface ChapterService {
 		@Multipart

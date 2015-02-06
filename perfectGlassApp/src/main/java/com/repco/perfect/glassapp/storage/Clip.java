@@ -1,7 +1,11 @@
 package com.repco.perfect.glassapp.storage;
 
+import android.util.Log;
+
 import java.io.File;
 import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
 
 import retrofit.RetrofitError;
 import retrofit.client.Response;
@@ -46,8 +50,24 @@ public final class Clip extends Storable{
 					new TypedFile("video/mp4", videoFile)
 				);
 	}
-	
-	private interface ClipService {
+    private boolean removeFile(String path){
+        File f = new File(path);
+        boolean ret = f.delete();
+        if(!ret){
+            Log.e(LTAG,"Remove "+path+" failed!");
+        }else{
+            Log.i(LTAG,"Remove "+path+" completed");
+        }
+        return ret;
+    }
+    @Override
+    protected boolean doCleanup() {
+        boolean videoRemoved = removeFile(videoPath);
+        boolean previewRemoved = removeFile(previewPath);
+        return videoRemoved && previewRemoved;
+    }
+
+    private interface ClipService {
 		@Multipart
 		@PUT("/api/storable")
 		Response postSyncData(@Part("json_data") TypedString jsonData,
