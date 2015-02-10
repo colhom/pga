@@ -64,9 +64,6 @@ public class LaunchMenuActivity extends BaseBoundServiceActivity {
 		openOptionsMenu();
 	}
 	@Override
-	protected void onClipServiceConnected() {
-		// TODO Auto-generated method stub
-		
-	}
+	protected void onClipServiceConnected() {}
 }
   

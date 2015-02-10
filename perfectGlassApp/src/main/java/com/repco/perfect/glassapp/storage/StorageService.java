@@ -20,13 +20,4 @@ public class StorageService extends Service {
 		return mStorageHandler.mMessenger.getBinder();
 	}
 
-	@Override
-	public void onDestroy() {
-		
-		if(mStorageHandler != null){
-			mStorageHandler.close();
-			mStorageHandler = null;
-		}
-		super.onDestroy();
-	}
 }

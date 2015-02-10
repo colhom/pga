@@ -49,6 +49,7 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 		mTextureView = new TextureView(this);
 		setContentView(mTextureView);
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        mTextureView.setSurfaceTextureListener(this);
 	}
 
     @Override
@@ -169,9 +170,7 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 
 
 	@Override
-	protected void onClipServiceConnected() {
-		mTextureView.setSurfaceTextureListener(this);
-	}
+	protected void onClipServiceConnected() {}
 
 	@Override
 	public void onError(MediaRecorder mr, int what, int extra) {
