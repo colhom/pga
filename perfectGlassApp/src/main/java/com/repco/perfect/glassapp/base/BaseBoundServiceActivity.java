@@ -30,9 +30,7 @@ public abstract class BaseBoundServiceActivity extends Activity {
 	protected ServiceConnection mServiceConnection = new ServiceConnection() {
 		
 		@Override
-		public void onServiceDisconnected(ComponentName arg0) {
-            mServiceLatch = new CountDownLatch(1);
-		}
+		public void onServiceDisconnected(ComponentName arg0) {}
 		
 		@Override
 		public void onServiceConnected(ComponentName name, IBinder service) {
@@ -44,9 +42,10 @@ public abstract class BaseBoundServiceActivity extends Activity {
 		}
 	};
 	protected abstract void onClipServiceConnected();
+
 	@Override
-	protected void onStart() {
-		super.onStart();
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
         mServiceLatch = new CountDownLatch(1);
         Intent service = new Intent(this,ClipService.class);
         startService(service);
@@ -56,9 +55,8 @@ public abstract class BaseBoundServiceActivity extends Activity {
 	}
 	
 	@Override
-	protected void onStop() {
-		super.onStop();
+	protected void onDestroy() {
+		super.onDestroy();
 		unbindService(mServiceConnection);
-		finish();
 	}
 }
