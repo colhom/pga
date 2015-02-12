@@ -321,10 +321,26 @@ public class ClipService extends Service {
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-        Intent captureIntent = new Intent(ClipService.this,ClipCaptureActivity.class);
-        captureIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(captureIntent);
+        Log.i(LTAG,"onStartCommand "+intent);
+
+        /*
+            Really should always check if intent is null before you assume that this invocation
+            is being generated in response to user action
+            
+            http://developer.android.com/reference/android/app/Service.html#onStartCommand(android.content.Intent, int, int)
+
+            about the "intent" parameter
+
+            "This may be null if the service is being restarted after its process has gone away,
+            and it had previously returned anything except START_STICKY_COMPATIBILITY."
+
+         */
+        if(intent != null) {
+            Intent captureIntent = new Intent(ClipService.this, ClipCaptureActivity.class);
+            captureIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                    | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(captureIntent);
+        }
         // We're database backed, so state should be "persistent" oustide
         // of this process lifecycle
         return START_STICKY;
