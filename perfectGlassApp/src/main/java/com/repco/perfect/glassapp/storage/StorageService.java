@@ -3,7 +3,6 @@ package com.repco.perfect.glassapp.storage;
 import android.app.Service;
 import android.content.Intent;
 import android.os.IBinder;
-import android.os.Messenger;
 
 public class StorageService extends Service {
 

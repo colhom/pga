@@ -1,25 +1,5 @@
 package com.repco.perfect.glassapp.sync;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Semaphore;
-
-import retrofit.RestAdapter;
-import retrofit.RetrofitError;
-import retrofit.client.Response;
-import retrofit.http.Multipart;
-import retrofit.http.POST;
-import retrofit.http.PUT;
-import retrofit.http.Part;
-import retrofit.mime.TypedFile;
-import retrofit.mime.TypedString;
-
-import com.repco.perfect.glassapp.BuildConfig;
-import com.repco.perfect.glassapp.DevData;
-import com.repco.perfect.glassapp.base.Storable;
-import com.repco.perfect.glassapp.storage.Chapter;
-import com.repco.perfect.glassapp.storage.StorageHandler;
-import com.repco.perfect.glassapp.storage.StorageService;
-
 import android.accounts.Account;
 import android.content.AbstractThreadedSyncAdapter;
 import android.content.ComponentName;
@@ -38,6 +18,14 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
 import android.util.Log;
+
+import com.repco.perfect.glassapp.BuildConfig;
+import com.repco.perfect.glassapp.base.Storable;
+import com.repco.perfect.glassapp.storage.StorageHandler;
+import com.repco.perfect.glassapp.storage.StorageService;
+
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 
 public class SyncAdapter extends AbstractThreadedSyncAdapter {
 

@@ -1,19 +1,11 @@
 package com.repco.perfect.glassapp;
 
-import java.io.File;
-import java.io.IOException;
-import java.math.BigInteger;
-import java.security.SecureRandom;
-
-import com.repco.perfect.glassapp.base.BaseBoundServiceActivity;
-import com.repco.perfect.glassapp.sync.SyncService;
-
-import android.accounts.Account;
-import android.accounts.AccountManager;
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Point;
 import android.graphics.SurfaceTexture;
 import android.media.AudioManager;
 import android.media.CamcorderProfile;
@@ -23,19 +15,28 @@ import android.media.ThumbnailUtils;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore.Video.Thumbnails;
-
-import com.google.android.glass.media.Sounds;
-
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+import android.view.Display;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.Surface;
 import android.view.TextureView;
-import android.view.WindowManager;
 import android.view.TextureView.SurfaceTextureListener;
+import android.view.WindowManager;
 
-public class ClipCaptureActivity extends BaseBoundServiceActivity implements
+import com.google.android.glass.media.Sounds;
+import com.repco.perfect.glassapp.base.ChapterActivity;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.math.BigInteger;
+import java.security.SecureRandom;
+
+public class ClipCaptureActivity extends ChapterActivity implements
 		MediaRecorder.OnInfoListener, MediaRecorder.OnErrorListener,
 		SurfaceTextureListener {
 
@@ -69,12 +70,13 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 	public void onInfo(MediaRecorder mr, int what, int extra) {
 		switch (what) {
 		case MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED:
+
 			resetRecorder();
-			
+
 			mPreview = ThumbnailUtils.createVideoThumbnail(
 					outputFile.getAbsolutePath(), Thumbnails.FULL_SCREEN_KIND);
 
-			
+
 			am.playSoundEffect(Sounds.SUCCESS);
 			openOptionsMenu();
 			break;
@@ -84,16 +86,19 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 	
 	@Override
 	public void openOptionsMenu() {
-
-		if(mPreview != null){
-			Canvas c = mSurface.lockCanvas(null);
-			try{
-				c.drawBitmap(mPreview, (float) 0.0, (float) 0.0, null);
-			}finally{
-				mSurface.unlockCanvasAndPost(c);
-			}
-		}
-		super.openOptionsMenu();
+        if(mSurface.isValid()) {
+            if (mPreview != null) {
+                Canvas c = mSurface.lockCanvas(null);
+                try {
+                    c.drawBitmap(mPreview, (float) 0.0, (float) 0.0, null);
+                } finally {
+                    mSurface.unlockCanvasAndPost(c);
+                }
+            }
+            super.openOptionsMenu();
+        }else{
+            Log.w(LTAG,"not opening options menu because surface is invalid. assuming we're dead");
+        }
 	}
 
 	@Override
@@ -116,13 +121,45 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 		return true;
 	}
 
+    private void saveClip(){
+        File previewFile = new File(outputFile.getAbsolutePath() + ".thumb.jpg");
+
+        Display display = ((WindowManager) getSystemService(Context.WINDOW_SERVICE))
+                .getDefaultDisplay();
+        Point size = new Point();
+        display.getSize(size);
+
+        Bitmap preview = Bitmap.createScaledBitmap(mPreview, size.x,
+                size.y, true);
+        FileOutputStream previewStream = null;
+        try {
+            previewStream = new FileOutputStream(previewFile);
+            preview.compress(Bitmap.CompressFormat.JPEG, 50,previewStream);
+        }catch(FileNotFoundException e){
+            throw new RuntimeException(e);
+        }finally {
+            if(previewStream != null){
+                try {
+                    previewStream.close();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+        Intent returnIntent = new Intent();
+        returnIntent.setAction(ClipService.Action.CS_SAVE_CLIP.toString());
+        returnIntent.putExtra("clipPath",outputFile.getAbsolutePath());
+        returnIntent.putExtra("previewPath",previewFile.getAbsolutePath());
+        LocalBroadcastManager.getInstance(this).sendBroadcast(returnIntent);
+        mCleanup = false;
+        finish();
+
+    }
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
-		case R.id.keep_clip_mi:
-			getClipService().saveClip(outputFile.getAbsolutePath(), mPreview);
-			mCleanup = false;
-			finish();
+        case R.id.keep_clip_mi:
+            saveClip();
 			break;
 		case R.id.replay_clip_mi:
 			MediaPlayer mp = new MediaPlayer();
@@ -166,11 +203,6 @@ public class ClipCaptureActivity extends BaseBoundServiceActivity implements
 		am.playSoundEffect(Sounds.SELECTED);
 		return true;
 	}
-
-
-
-	@Override
-	protected void onClipServiceConnected() {}
 
 	@Override
 	public void onError(MediaRecorder mr, int what, int extra) {

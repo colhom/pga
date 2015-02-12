@@ -1,18 +1,6 @@
 package com.repco.perfect.glassapp.base;
 
-import java.io.File;
-import java.io.Serializable;
-import java.util.Date;
-import java.util.UUID;
-
-import retrofit.RestAdapter;
-import retrofit.RetrofitError;
-import retrofit.client.Response;
-import retrofit.http.Multipart;
-import retrofit.http.POST;
-import retrofit.http.Part;
-import retrofit.mime.TypedFile;
-import retrofit.mime.TypedString;
+import android.util.Log;
 
 import com.github.julman99.gsonfire.DateSerializationPolicy;
 import com.github.julman99.gsonfire.GsonFireBuilder;
@@ -21,11 +9,14 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
 import com.repco.perfect.glassapp.BuildConfig;
 import com.repco.perfect.glassapp.DevData;
-import com.repco.perfect.glassapp.sync.SyncService;
 
-import android.database.sqlite.SQLiteDatabase;
-import android.text.format.DateFormat;
-import android.util.Log;
+import java.io.Serializable;
+import java.util.Date;
+import java.util.UUID;
+
+import retrofit.RestAdapter;
+import retrofit.RetrofitError;
+import retrofit.client.Response;
 
 public abstract class Storable implements Serializable{
 	protected final String LTAG = getClass().getSimpleName();

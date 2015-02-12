@@ -1,8 +1,5 @@
 package com.repco.perfect.glassapp.sync;
 
-import com.repco.perfect.glassapp.R;
-
-import android.accounts.AccountManager;
 import android.app.Service;
 import android.content.Intent;
 import android.os.IBinder;

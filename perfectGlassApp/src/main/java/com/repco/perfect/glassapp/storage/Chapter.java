@@ -1,25 +1,20 @@
 package com.repco.perfect.glassapp.storage;
 
-import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-
-import retrofit.RestAdapter;
-import retrofit.RetrofitError;
-import retrofit.client.Response;
-import retrofit.http.Multipart;
-import retrofit.http.PUT;
-import retrofit.http.Part;
-import retrofit.mime.TypedFile;
-import retrofit.mime.TypedString;
-import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 
 import com.google.gson.annotations.Expose;
 import com.repco.perfect.glassapp.DevData;
 import com.repco.perfect.glassapp.base.Storable;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import retrofit.RetrofitError;
+import retrofit.client.Response;
+import retrofit.http.Multipart;
+import retrofit.http.PUT;
+import retrofit.http.Part;
+import retrofit.mime.TypedString;
 
 public final class Chapter extends Storable {
 

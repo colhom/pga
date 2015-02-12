@@ -1,19 +1,15 @@
 package com.repco.perfect.glassapp;
 
-import com.repco.perfect.glassapp.base.BaseBoundServiceActivity;
-import com.repco.perfect.glassapp.storage.Chapter;
-import com.repco.perfect.glassapp.storage.StorageHandler;
-import com.repco.perfect.glassapp.sync.SyncService;
-
-import android.accounts.Account;
-import android.accounts.AccountManager;
 import android.content.Intent;
-import android.os.Bundle;
+import android.support.v4.content.LocalBroadcastManager;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
-public class LaunchMenuActivity extends BaseBoundServiceActivity {
+import com.repco.perfect.glassapp.base.ChapterActivity;
 
+public class LaunchMenuActivity extends ChapterActivity {
+    private final String LTAG=this.getClass().getSimpleName();
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		getMenuInflater().inflate(R.menu.launcher, menu);
@@ -27,43 +23,56 @@ public class LaunchMenuActivity extends BaseBoundServiceActivity {
 	}
 
     @Override
-    public boolean onPrepareOptionsMenu(Menu menu) {
-        Chapter active = getClipService().getCachedActiveChapter();
-        if(active != null){
-            boolean canPreview = (active.clips.size() > 0);
+    public boolean onPrepareOptionsMenu(final Menu menu) {
+
+        if (mChapter != null) {
+            boolean canPreview = (mChapter.clips.size() > 0);
             menu.getItem(0).setEnabled(canPreview);
 
 
-            boolean canPublish = (active.clips.size() >= 3);
+            boolean canPublish = (mChapter.clips.size() >= 3);
             menu.getItem(1).setEnabled(canPublish);
         }
+
         return true;
     }
 
     @Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-		switch(item.getItemId()){
-		case R.id.preview_chapter_item:
-            getClipService().previewChapter();
-            break;
-        case R.id.write_chapter_item:
-			getClipService().publishChapter();
-			break;
-		case R.id.stop_service_item:
-			getClipService().stop();
-			break;
-		default:
-			return false;
-		}
+
+        ClipService.Action action;
+        switch(item.getItemId()){
+            case R.id.preview_chapter_item:
+                action = ClipService.Action.CS_PREVIEW_CHAPTER;
+                break;
+            case R.id.write_chapter_item:
+                action = ClipService.Action.CS_PUBLISH_CHAPTER;
+                break;
+            case R.id.stop_service_item:
+                action= ClipService.Action.CS_STOP_SERVICE;
+                break;
+            default:
+                action = null;
+                break;
+        }
+
+        if(action == null){
+            Log.e(LTAG,"Could not find action for menu item id ="+item.getItemId());
+            return false;
+        }
+        Intent intent = new Intent();
+        intent.setAction(action.toString());
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
 		return true;
 	
 	}
+
 	@Override
 	public void onAttachedToWindow() {
 		super.onAttachedToWindow();
+        Log.i(LTAG, "onAttachedToWindow "+mChapter.clips.size());
 		openOptionsMenu();
 	}
-	@Override
-	protected void onClipServiceConnected() {}
+
 }
   

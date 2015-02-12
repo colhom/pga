@@ -1,33 +1,29 @@
 package com.repco.perfect.glassapp;
 
-import java.io.IOException;
-import java.util.NoSuchElementException;
-import java.util.Queue;
-import java.util.concurrent.LinkedBlockingQueue;
-
+import android.content.Intent;
 import android.graphics.SurfaceTexture;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnCompletionListener;
 import android.os.Bundle;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.Surface;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
 import android.view.TextureView;
 import android.view.TextureView.SurfaceTextureListener;
 import android.view.WindowManager;
-import android.widget.ToggleButton;
 
-import com.google.android.glass.media.Sounds;
-import com.repco.perfect.glassapp.base.BaseBoundServiceActivity;
-import com.repco.perfect.glassapp.storage.Chapter;
+import com.repco.perfect.glassapp.base.ChapterActivity;
 import com.repco.perfect.glassapp.storage.Clip;
 import com.repco.perfect.glassapp.storage.StorageHandler;
 
-public class ClipPreviewActivity extends BaseBoundServiceActivity implements
+import java.io.IOException;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
+
+public class ClipPreviewActivity extends ChapterActivity implements
 		SurfaceTextureListener {
 
 	private static final String LTAG = ClipPreviewActivity.class
@@ -38,18 +34,12 @@ public class ClipPreviewActivity extends BaseBoundServiceActivity implements
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		mChapter = (Chapter) getIntent().getExtras().getSerializable("chapter");
 		mTextureView = new TextureView(this);
 		mTextureView.setSurfaceTextureListener(this);
 		mPlayer = new MediaPlayer();
 		setContentView(mTextureView);
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-	}
-
-	@Override
-	protected void onClipServiceConnected() {
-		
 	}
 
 	@Override
@@ -61,7 +51,6 @@ public class ClipPreviewActivity extends BaseBoundServiceActivity implements
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 	}
 
-	private Chapter mChapter = null;
 	
 	@Override
 	public void onSurfaceTextureAvailable(SurfaceTexture arg0, int arg1,
@@ -69,42 +58,43 @@ public class ClipPreviewActivity extends BaseBoundServiceActivity implements
 		final Surface surface = new Surface(mTextureView.getSurfaceTexture());
 		mPlayer.setSurface(surface);
 
-		Log.d(LTAG, mChapter.toString());
-		final Queue<Clip> clips = new LinkedBlockingQueue<Clip>(mChapter.clips);
 
-		for (Clip clip : clips) {
-			Log.d(LTAG, clip.toString());
-		}
-		MediaPlayer.OnCompletionListener trigger = new OnCompletionListener() {
-			@Override
-			public void onCompletion(MediaPlayer mp) {
-				Log.i(LTAG,"OnCompletion " + clips.size());
-				Clip clip;
+        Log.d(LTAG, mChapter.toString());
+        final Queue<Clip> clips = new LinkedBlockingQueue<Clip>(mChapter.clips);
 
-				clip = clips.poll();
-				if (clip == null) {
-					// no clips left;
-					surface.release();
-					openOptionsMenu();
-					return;
-				}
+        for (Clip clip : clips) {
+            Log.d(LTAG, clip.toString());
+        }
+        MediaPlayer.OnCompletionListener trigger = new OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                Log.i(LTAG,"OnCompletion " + clips.size());
+                Clip clip;
 
-				mp.reset();
+                clip = clips.poll();
+                if (clip == null) {
+                    // no clips left;
+                    surface.release();
+                    openOptionsMenu();
+                    return;
+                }
 
-				try {
-					mp.setDataSource(clip.videoPath);
-					mp.prepare();
-				} catch (IOException e) {
-					throw new RuntimeException(e);
-				}
+                mp.reset();
 
-				mp.setOnCompletionListener(this);
+                try {
+                    mp.setDataSource(clip.videoPath);
+                    mp.prepare();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
 
-				mp.start();
-			}
-		};
+                mp.setOnCompletionListener(this);
 
-		trigger.onCompletion(mPlayer);
+                mp.start();
+            }
+        };
+
+        trigger.onCompletion(mPlayer);
 
 	}
 
@@ -115,18 +105,22 @@ public class ClipPreviewActivity extends BaseBoundServiceActivity implements
 	}
 
 	@Override
-	public boolean onPrepareOptionsMenu(Menu menu) {
-		if (mChapter == null || mChapter.clips.size() < StorageHandler.MIN_CHAPTER_SIZE) {
-			menu.getItem(0).setEnabled(false);
-		}
-		return true;
+	public boolean onPrepareOptionsMenu(final Menu menu) {
+
+        if (mChapter.clips.size() < StorageHandler.MIN_CHAPTER_SIZE) {
+            menu.getItem(0).setEnabled(false);
+        }
+
+        return true;
 	}
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.publish_chapter_item:
-			getClipService().publishChapter();
+            Intent intent = new Intent();
+            intent.setAction(ClipService.Action.CS_PUBLISH_CHAPTER.toString());
+            LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
 			finish();
 			break;
 		case R.id.exit_preview_item:

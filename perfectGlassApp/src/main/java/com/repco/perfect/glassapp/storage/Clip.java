@@ -2,10 +2,11 @@ package com.repco.perfect.glassapp.storage;
 
 import android.util.Log;
 
+import com.google.gson.annotations.Expose;
+import com.repco.perfect.glassapp.DevData;
+import com.repco.perfect.glassapp.base.Storable;
+
 import java.io.File;
-import java.util.Date;
-import java.util.LinkedList;
-import java.util.List;
 
 import retrofit.RetrofitError;
 import retrofit.client.Response;
@@ -14,10 +15,6 @@ import retrofit.http.PUT;
 import retrofit.http.Part;
 import retrofit.mime.TypedFile;
 import retrofit.mime.TypedString;
-
-import com.google.gson.annotations.Expose;
-import com.repco.perfect.glassapp.DevData;
-import com.repco.perfect.glassapp.base.Storable;
 
 public final class Clip extends Storable{
 	

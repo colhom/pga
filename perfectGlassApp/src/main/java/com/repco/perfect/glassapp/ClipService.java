@@ -1,10 +1,28 @@
 package com.repco.perfect.glassapp;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import android.accounts.Account;
+import android.accounts.AccountManager;
+import android.app.PendingIntent;
+import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.ContentResolver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
+import android.media.AudioManager;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.IBinder;
+import android.os.Message;
+import android.os.Messenger;
+import android.os.RemoteException;
+import android.support.v4.content.LocalBroadcastManager;
+import android.text.format.DateUtils;
+import android.util.Log;
+import android.widget.RemoteViews;
 
 import com.google.android.glass.media.Sounds;
 import com.google.android.glass.timeline.LiveCard;
@@ -15,32 +33,8 @@ import com.repco.perfect.glassapp.storage.StorageHandler;
 import com.repco.perfect.glassapp.storage.StorageService;
 import com.repco.perfect.glassapp.ui.LiveCardBindings;
 
-import android.accounts.Account;
-import android.accounts.AccountManager;
-import android.app.PendingIntent;
-import android.app.Service;
-import android.content.ComponentName;
-import android.content.ContentResolver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.ServiceConnection;
-import android.graphics.Bitmap;
-import android.graphics.Bitmap.CompressFormat;
-import android.graphics.Point;
-import android.media.AudioManager;
-import android.os.Binder;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.HandlerThread;
-import android.os.IBinder;
-import android.os.Message;
-import android.os.Messenger;
-import android.os.RemoteException;
-import android.text.format.DateUtils;
-import android.util.Log;
-import android.view.Display;
-import android.view.WindowManager;
-import android.widget.RemoteViews;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class ClipService extends Service {
 	private static final String LTAG = ClipService.class.getSimpleName();
@@ -68,8 +62,16 @@ public class ClipService extends Service {
 		public void onServiceConnected(ComponentName arg0, IBinder binder) {
 			Log.i(LTAG, "Storage service connection connected");
 			mStorageMessenger = new Messenger(binder);
+            Message m = Message.obtain();
+            m.what = StorageHandler.GET_ACTIVE_CHAPTER;
+            m.arg1 = CBID_INITIALIZE_LIVECARD;
+            m.replyTo = mStorageReplyMessenger;
+            try {
+                mStorageMessenger.send(m);
+            } catch (RemoteException e) {
+                throw new RuntimeException(e);
+            }
             storageLatch.countDown();
-            sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null);
             mDashHandler.post(mDashUpdateRunnable);
 		}
 	};
@@ -122,6 +124,13 @@ public class ClipService extends Service {
 		mStorageReplyHandler = new Handler(ht.getLooper(), mReplyCallback);
 		mStorageReplyMessenger = new Messenger(mStorageReplyHandler);
 		mAudio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+
+        //set up broadcast receiver for activites
+        IntentFilter filter = new IntentFilter();
+        for(Action action : Action.values()){
+            filter.addAction(action.toString());
+        }
+        LocalBroadcastManager.getInstance(this).registerReceiver(mReceiver,filter);
 	}
     private static final long UPDATE_DASH_DELAY = 30 * DateUtils.SECOND_IN_MILLIS;
 
@@ -137,7 +146,7 @@ public class ClipService extends Service {
         }
     };
 
-    public static final int CBID_CHAPTER_PREVIEW=1,CBID_LAUNCH_OPTIONS_MENU=2;
+    public static final int CBID_CHAPTER_PREVIEW=1,CBID_LAUNCH_OPTIONS_MENU=2,CBID_INITIALIZE_LIVECARD=3;
 
     private Intent mStorageIntent;
 	private final Handler.Callback mReplyCallback = new Handler.Callback() {
@@ -151,8 +160,7 @@ public class ClipService extends Service {
 
                 case StorageHandler.RECEIVE_ACTIVE_CHAPTER:
                     active = (Chapter) msg.obj;
-                    mCachedActive = active;
-                    updateDash();
+
                     switch(msg.arg1) {
                         case CBID_CHAPTER_PREVIEW:
                             if (active == null || active.clips.isEmpty()) {
@@ -171,11 +179,28 @@ public class ClipService extends Service {
                         case CBID_LAUNCH_OPTIONS_MENU:
 
                             break;
+
+                        case CBID_INITIALIZE_LIVECARD:
+                            if (mLiveCard == null) {
+                                mLiveCard = new LiveCard(ClipService.this, "pga_dash");
+                                mLiveCard.attach(ClipService.this);
+                                mLiveCard.setDirectRenderingEnabled(false);
+
+                                mDashView = new RemoteViews(getPackageName(), R.layout.dash);
+                                mLiveCard.setViews(mDashView);
+                            }
+                            break;
                         default:
 
                             break;
                     }
-                    Log.i(LTAG, "GET_ACTIVE_CHAPTER delivered");
+                    Intent menuIntent = new Intent(ClipService.this, LaunchMenuActivity.class);
+                    menuIntent.putExtra("chapter", active);
+                    mLiveCard.setAction(PendingIntent.getActivity(ClipService.this,0, menuIntent, PendingIntent.FLAG_UPDATE_CURRENT));
+
+                    mCachedActive = active;
+                    updateDash();
+
                     delivered = true;
                     break;
                 case StorageHandler.RECEIVE_END_CHAPTER:
@@ -196,60 +221,70 @@ public class ClipService extends Service {
 	};
 
 	private AudioManager mAudio;
-	public class ClipServiceBinder extends Binder {
 
-		public void stop() {
-			ClipService.this.stopSelf();
-		}
+    public enum Action {
+        CS_SAVE_CLIP("CS_SAVE_CLIP"),
+        CS_PUBLISH_CHAPTER("CS_PUBLISH_CHAPTER"),
+        CS_PREVIEW_CHAPTER("CS_PREVIEW_CHAPTER"),
+        CS_STOP_SERVICE("CS_STOP_SERVICE");
 
-
-		public void saveClip(String outputPath, Bitmap rawPreview) {
-			try {
-
-				File previewFile = new File(outputPath + ".thumb.jpg");
-
-				Display display = ((WindowManager) getSystemService(Context.WINDOW_SERVICE))
-						.getDefaultDisplay();
-				Point size = new Point();
-				display.getSize(size);
-
-				Bitmap preview = Bitmap.createScaledBitmap(rawPreview, size.x,
-						size.y, true);
-
-				preview.compress(CompressFormat.JPEG, 50, new FileOutputStream(
-						previewFile));
-
-				Clip clip = new Clip(outputPath, previewFile.getAbsolutePath());
-				clip.dirty = true;
-				sendStorageMessage(StorageHandler.PUSH_CLIP, clip);
-                sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null);
-
-			} catch (FileNotFoundException e) {
-				throw new RuntimeException(e);
-			}
-		}
-
-        public void publishChapter(){
-            sendStorageMessage(StorageHandler.END_CHAPTER, null);
-            sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER, null);
+        private final String val;
+        private Action(final String val){
+            this.val = val;
         }
 
-        public void previewChapter(){
-            sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null,CBID_CHAPTER_PREVIEW);
+        @Override
+        public String toString() {
+            return val;
         }
+    }
+    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            //Our filter setup should ensure that the fitler this receiver
+            //was registered with was generated from the same enum
 
-        public Chapter getCachedActiveChapter(){
-            return mCachedActive;
+            //Illegal arg exception will be thrown here otherwise from Action.valueOf()
+            Action action = Action.valueOf(intent.getAction());
+
+            switch (action){
+                case CS_SAVE_CLIP:
+                    String outputPath = intent.getStringExtra("clipPath");
+                    String previewPath = intent.getStringExtra("previewPath");
+                    Clip clip = new Clip(outputPath, previewPath);
+                    clip.dirty = true;
+                    sendStorageMessage(StorageHandler.PUSH_CLIP, clip);
+                    sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null);
+                    break;
+                case CS_PUBLISH_CHAPTER:
+                    sendStorageMessage(StorageHandler.END_CHAPTER, null);
+                    sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER, null);
+                    break;
+                case CS_PREVIEW_CHAPTER:
+                    sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null,CBID_CHAPTER_PREVIEW);
+                    break;
+                case CS_STOP_SERVICE:
+                    ClipService.this.stopSelf();
+                    break;
+                default:
+                    Log.w(LTAG,"taking default (no) action for received broadcast "+action);
+                    break;
+            }
         }
+    };
 
-	}
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
     public void sendStorageMessage(int what,Object obj){
         sendStorageMessage(what,obj,0);
     }
     public void sendStorageMessage(int what, Object obj, int cbId) {
-        try {
-            if (!storageLatch.await(15,TimeUnit.SECONDS)){
-                throw new RuntimeException("Timeout getting storageLatch");
+        try{
+            if(!storageLatch.await(10,TimeUnit.SECONDS)){
+                throw new RuntimeException("Timed out waiting for storage connection");
             }
         }catch(InterruptedException e){
             throw new RuntimeException(e);
@@ -280,48 +315,30 @@ public class ClipService extends Service {
 
 	}
 
-	private ClipServiceBinder mBinder;
-
-	@Override
-	public IBinder onBind(Intent intent) {
-        if (mBinder == null) {
-            mBinder = new ClipServiceBinder();
-        }
-
-        return mBinder;
-	}
 
 	private RemoteViews mDashView = null;
 
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-        if (mLiveCard == null) {
-            mLiveCard = new LiveCard(this, "pga_dash");
-
-            mLiveCard.setDirectRenderingEnabled(false);
-
-            mDashView = new RemoteViews(getPackageName(), R.layout.dash);
-            mLiveCard.setViews(mDashView);
-
-            Intent menuIntent = new Intent(this, LaunchMenuActivity.class);
-
-            mLiveCard.setAction(PendingIntent.getActivity(this, 0, menuIntent,
-                    0));
-
-        }
-
+        Intent captureIntent = new Intent(ClipService.this,ClipCaptureActivity.class);
+        captureIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(captureIntent);
+        // We're database backed, so state should be "persistent" oustide
+        // of this process lifecycle
         return START_STICKY;
 	}
 
 	@Override
 	public void onDestroy() {
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mReceiver);
         isStopped = true;
 		if (mLiveCard != null && mLiveCard.isPublished()) {
 
 			mLiveCard.unpublish();
-			mLiveCard = null;
 		}
+        mLiveCard = null;
 		unbindService(mStorageConnection);
         stopService(mStorageIntent);
 		super.onDestroy();

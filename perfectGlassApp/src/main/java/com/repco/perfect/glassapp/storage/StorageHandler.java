@@ -1,26 +1,26 @@
 package com.repco.perfect.glassapp.storage;
 
-import java.util.Date;
-import java.util.LinkedList;
-import java.util.List;
-
-import com.repco.perfect.glassapp.BuildConfig;
-import com.repco.perfect.glassapp.ClipService;
-import com.repco.perfect.glassapp.base.Storable;
-
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import android.os.Handler;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
 import android.util.Log;
+
+import com.repco.perfect.glassapp.BuildConfig;
+import com.repco.perfect.glassapp.ClipService;
+import com.repco.perfect.glassapp.base.Storable;
+
+import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
 
 public class StorageHandler extends SQLiteOpenHelper {
 	public static final int MIN_CHAPTER_SIZE = 3;
@@ -42,7 +42,7 @@ public class StorageHandler extends SQLiteOpenHelper {
 
 		mDb = getWritableDatabase();
 
-		HandlerThread ht = new HandlerThread("StorageHandler");
+		HandlerThread ht = new HandlerThread(getClass().getSimpleName());
 		ht.start();
 		mHandler = new Handler(ht.getLooper(), mCallback);
 		mMessenger = new Messenger(mHandler);
@@ -197,8 +197,7 @@ public class StorageHandler extends SQLiteOpenHelper {
 
 	@Override
 	public void close() {
-		mHandler.getLooper().quit();
-
+		mHandler.getLooper().quitSafely();
 		// TODO: stop sync thread
 
 		super.close();
