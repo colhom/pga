@@ -13,4 +13,9 @@
     <string name="write_chapter_text">Upload chapter</string>
     <string name="publish_chapter_mi_text">Upload chapter</string>
     <string name="exit_preview_mi_text">Dismiss</string>
+    <string name="alert_text">No network connectivity</string>
+    <string name="alert_footnote_text">Tap to view connectivity status</string>
+    <string name="warning_text">Oops, there was an error</string>
+    <string name="warning_footnote_text">Tap to see if we can fix</string>
+
 </resources>
