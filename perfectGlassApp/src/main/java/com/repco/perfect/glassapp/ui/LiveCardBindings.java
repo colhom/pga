@@ -20,7 +20,16 @@ public class LiveCardBindings {
 	}
 
     static final String dashHtmlTemplate =
-            "Your current <font color='#99cc33'>chapter</font> started <font color='#ddbb11'>%s</font>";
+            "<article>\n" +
+                    "  <figure>\n" +
+                    "    <ul class=\"mosaic mosaic3\">\n" +
+                    "      <li style=\"background-image: url(%s)\"></li>\n" +
+                    "    </ul>\n" +
+                    "  </figure>\n" +
+                    "  <section>\n" +
+                    "<span class=\"text-small\">Your current chapter has <span style= \"color:#99cc33;\">%d</span> videos and started <span style=\"color:#ddbb11\">%s</span></span>\n" +
+                    "  </section>\n" +
+                    "</article>";
     static final String noClipsDashHtmlTemplate = "Get started on a new chapter <font color='#99cc33'>today</font>?";
     public static void buildDashView(Context c,RemoteViews view,Chapter activeChapter){
         String html = null;
@@ -30,7 +39,10 @@ public class LiveCardBindings {
             long chapterStart = activeChapter.clips.get(0).ts.getTime();
             long now = new Date().getTime();
             String diffString = DateUtils.getRelativeDateTimeString(c,chapterStart,DateUtils.MINUTE_IN_MILLIS,DateUtils.WEEK_IN_MILLIS,0).toString().split(",")[0];
-            html = String.format(dashHtmlTemplate,diffString);
+            String imgString = activeChapter.clips.get(0).previewPath;
+            int clipCount = activeChapter.clips.size();
+
+            html = String.format(dashHtmlTemplate,imgString, clipCount, diffString);
         }
 
         setHTML(view,R.id.body_text, Html.fromHtml(html));

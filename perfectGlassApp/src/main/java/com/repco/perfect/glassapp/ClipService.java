@@ -20,10 +20,13 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
 import android.support.v4.content.LocalBroadcastManager;
+import android.text.Html;
 import android.text.format.DateUtils;
 import android.util.Log;
 import android.widget.RemoteViews;
+import android.view.View;
 
+import com.google.android.glass.widget.CardBuilder;
 import com.google.android.glass.media.Sounds;
 import com.google.android.glass.timeline.LiveCard;
 import com.google.android.glass.timeline.LiveCard.PublishMode;
@@ -33,6 +36,7 @@ import com.repco.perfect.glassapp.storage.StorageHandler;
 import com.repco.perfect.glassapp.storage.StorageService;
 import com.repco.perfect.glassapp.ui.LiveCardBindings;
 
+import java.util.Date;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -306,9 +310,31 @@ public class ClipService extends Service {
             return;
         }
 
-        LiveCardBindings.buildDashView(this,mDashView,mCachedActive);
+        long chapterStart = mCachedActive.clips.get(0).ts.getTime();
+        long now = new Date().getTime();
+        String diffString = DateUtils.getRelativeDateTimeString(this,chapterStart,DateUtils.MINUTE_IN_MILLIS,DateUtils.WEEK_IN_MILLIS,0).toString().split(",")[0];
+        String imgString = mCachedActive.clips.get(0).previewPath;
+        int clipCount = mCachedActive.clips.size();
 
-		mLiveCard.setViews(mDashView);
+        String dashString = String.format("Your chapter has <font color='#99cc33'>%d</font> videos and started <font color='#99cc33'>%s</font>", clipCount, diffString);
+
+        RemoteViews view3 = new CardBuilder(this, CardBuilder.Layout.COLUMNS_FIXED)
+                .setText(Html.fromHtml(dashString))
+                .addImage(R.drawable.eye2)
+                .addImage(R.drawable.quill)
+                .addImage(R.drawable.quill)
+                .addImage(R.drawable.quill)
+                .addImage(R.drawable.quill)
+                .addImage(R.drawable.quill)
+                .addImage(R.drawable.quill)
+                .addImage(R.drawable.quill)
+                .getRemoteViews();
+
+//        LiveCardBindings.buildDashView(this,mDashView,mCachedActive);
+//        for (Clip c : mCachedActive.clips){
+//            System.out.println("Preview image: "+c.previewPath);
+//        }
+		mLiveCard.setViews(view3);
         if (!mLiveCard.isPublished()) {
             mLiveCard.publish(PublishMode.SILENT);
         }
