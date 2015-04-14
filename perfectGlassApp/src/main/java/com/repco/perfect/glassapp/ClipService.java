@@ -25,6 +25,8 @@ import android.text.format.DateUtils;
 import android.util.Log;
 import android.widget.RemoteViews;
 import android.view.View;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 
 import com.google.android.glass.widget.CardBuilder;
 import com.google.android.glass.media.Sounds;
@@ -313,28 +315,24 @@ public class ClipService extends Service {
         long chapterStart = mCachedActive.clips.get(0).ts.getTime();
         long now = new Date().getTime();
         String diffString = DateUtils.getRelativeDateTimeString(this,chapterStart,DateUtils.MINUTE_IN_MILLIS,DateUtils.WEEK_IN_MILLIS,0).toString().split(",")[0];
-        String imgString = mCachedActive.clips.get(0).previewPath;
         int clipCount = mCachedActive.clips.size();
 
-        String dashString = String.format("Your chapter has <font color='#99cc33'>%d</font> videos and started <font color='#99cc33'>%s</font>", clipCount, diffString);
+        String dashString = String.format("Your chapter has <font color='#99cc33'>%d</font> moments and started <font color='#ddbb11'>%s</font>", clipCount, diffString);
+        BitmapFactory.Options bmOptions = new BitmapFactory.Options();
 
-        RemoteViews view3 = new CardBuilder(this, CardBuilder.Layout.COLUMNS_FIXED)
-                .setText(Html.fromHtml(dashString))
-                .addImage(R.drawable.eye2)
-                .addImage(R.drawable.quill)
-                .addImage(R.drawable.quill)
-                .addImage(R.drawable.quill)
-                .addImage(R.drawable.quill)
-                .addImage(R.drawable.quill)
-                .addImage(R.drawable.quill)
-                .addImage(R.drawable.quill)
-                .getRemoteViews();
+        CardBuilder card = new CardBuilder(this, CardBuilder.Layout.COLUMNS)
+                .setText(Html.fromHtml(dashString));
 
-//        LiveCardBindings.buildDashView(this,mDashView,mCachedActive);
-//        for (Clip c : mCachedActive.clips){
-//            System.out.println("Preview image: "+c.previewPath);
-//        }
-		mLiveCard.setViews(view3);
+        for (int i=0; i< mCachedActive.clips.size() && i<5; i++){
+
+            Bitmap bitmap = BitmapFactory.decodeFile(mCachedActive.clips.get(i).previewPath,bmOptions);
+            card.addImage(bitmap);
+
+        }
+
+        RemoteViews dashView = card.getRemoteViews();
+
+		mLiveCard.setViews(dashView);
         if (!mLiveCard.isPublished()) {
             mLiveCard.publish(PublishMode.SILENT);
         }
