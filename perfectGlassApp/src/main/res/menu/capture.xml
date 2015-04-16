@@ -9,7 +9,7 @@
         android:title="@string/keep_clip_mi_text"
         android:icon="@drawable/clapper"/>
     <item
-        android:id="@+id/discard_clip_mi"
+        android:id="@+id/retake_clip_mi"
         android:title="@string/discard_clip_mi_text"
         android:icon="@drawable/retake"/>
 

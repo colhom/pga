@@ -1,6 +1,7 @@
 package com.repco.perfect.glassapp;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -18,13 +19,13 @@ import android.provider.MediaStore.Video.Thumbnails;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.Display;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.TextureView.SurfaceTextureListener;
-import android.view.View;
 import android.view.WindowManager;
 
 import com.google.android.glass.media.Sounds;
@@ -47,17 +48,20 @@ public class ClipCaptureActivity extends ChapterActivity implements
 	private Surface mSurface = null;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+        System.out.println("on create");
 		super.onCreate(savedInstanceState);
 		am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 		mTextureView = new TextureView(this);
 		setContentView(new TuggableView(this,mTextureView));
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         mTextureView.setSurfaceTextureListener(this);
+
+        doneRecording = false;
 	}
 
     @Override
     protected void onDestroy() {
-        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
         super.onDestroy();
     }
 
@@ -68,6 +72,7 @@ public class ClipCaptureActivity extends ChapterActivity implements
 
 	private Bitmap mPreview;
 
+    private boolean doneRecording;
 	@Override
 	public void onInfo(MediaRecorder mr, int what, int extra) {
 		switch (what) {
@@ -80,12 +85,12 @@ public class ClipCaptureActivity extends ChapterActivity implements
 
 
 			am.playSoundEffect(Sounds.SUCCESS);
-			openOptionsMenu();
+			doneRecording = true;
 			break;
 		}
 
 	}
-	
+
 	@Override
 	public void openOptionsMenu() {
         if(mSurface.isValid()) {
@@ -105,9 +110,10 @@ public class ClipCaptureActivity extends ChapterActivity implements
 
 	@Override
 	protected void onStop() {
-		super.onStop();
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        destroy();
         closeOptionsMenu();
-		destroy();
+		super.onStop();
 	}
 	private void resetRecorder() {
 		mRec.stop();
@@ -196,8 +202,10 @@ public class ClipCaptureActivity extends ChapterActivity implements
 			mp.prepareAsync();
 			
 			break;
-		case R.id.discard_clip_mi:
+		case R.id.retake_clip_mi:
+            Intent intent = getIntent();
 			finish();
+            startActivity(intent);
 			break;
 		default:
 			return false;
@@ -229,12 +237,11 @@ public class ClipCaptureActivity extends ChapterActivity implements
 			}catch(IllegalStateException e){
 				Log.d(getClass().getSimpleName(),"media recorder already stopped");
 			}
+            mRec.reset();
 			mRec.release();
 			mRec = null;
 		}
-		if(mSurface != null && mSurface.isValid()){
-			mSurface.release();
-		}
+
 		
 		if(mCleanup){
 			if(outputFile != null && outputFile.exists()){
@@ -247,6 +254,7 @@ public class ClipCaptureActivity extends ChapterActivity implements
 	}
 
 	private boolean mCleanup = true;
+
 	@Override
 	public void onSurfaceTextureAvailable(SurfaceTexture texture, int width,
 			int height) {
@@ -298,9 +306,24 @@ public class ClipCaptureActivity extends ChapterActivity implements
 		
 	}
 
-	@Override
-	public boolean onSurfaceTextureDestroyed(SurfaceTexture arg0) {
-		destroy();
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if(keyCode == KeyEvent.KEYCODE_DPAD_CENTER){
+            if(doneRecording){
+                openOptionsMenu();
+            }else{
+                am.playSoundEffect(Sounds.DISALLOWED);
+            }
+
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+	public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+        System.out.println("Surface texture destroyed");
+        mSurface.release();
 		return true;
 	}
 
