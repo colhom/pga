@@ -1,7 +1,6 @@
 package com.repco.perfect.glassapp;
 
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -26,9 +25,11 @@ import android.view.MenuItem;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.TextureView.SurfaceTextureListener;
+import android.view.View;
 import android.view.WindowManager;
 
 import com.google.android.glass.media.Sounds;
+import com.google.android.glass.widget.Slider;
 import com.repco.perfect.glassapp.base.ChapterActivity;
 import com.repco.perfect.glassapp.base.TuggableView;
 
@@ -38,6 +39,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.security.SecureRandom;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class ClipCaptureActivity extends ChapterActivity implements
 		MediaRecorder.OnInfoListener, MediaRecorder.OnErrorListener,
@@ -45,6 +48,9 @@ public class ClipCaptureActivity extends ChapterActivity implements
 
 	private AudioManager am;
 	private TextureView mTextureView = null;
+    private Slider mSlider;
+    private Slider.Determinate mDeterminate;
+    private Timer mTimer;
 	private Surface mSurface = null;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -52,10 +58,12 @@ public class ClipCaptureActivity extends ChapterActivity implements
 		super.onCreate(savedInstanceState);
 		am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 		mTextureView = new TextureView(this);
-		setContentView(new TuggableView(this,mTextureView));
+        View contentView = new TuggableView(this,mTextureView);
+        mSlider = Slider.from(contentView);
+		setContentView(contentView);
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         mTextureView.setSurfaceTextureListener(this);
-
+        mTimer = new Timer();
         doneRecording = false;
 	}
 
@@ -77,6 +85,8 @@ public class ClipCaptureActivity extends ChapterActivity implements
 	public void onInfo(MediaRecorder mr, int what, int extra) {
 		switch (what) {
 		case MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED:
+
+            finishClipTimer();
 
 			resetRecorder();
 
@@ -187,13 +197,15 @@ public class ClipCaptureActivity extends ChapterActivity implements
 				
 				@Override
 				public void onPrepared(MediaPlayer mp) {
-					mp.start();	
+                    startClipTimer(100);
+                    mp.start();
 				}
 			});
 			
 			mp.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
 				@Override
 				public void onCompletion(MediaPlayer mp) {
+                    finishClipTimer();
 					mp.setSurface(null);
 					mp.release();
 					openOptionsMenu();
@@ -211,6 +223,7 @@ public class ClipCaptureActivity extends ChapterActivity implements
 			return false;
 		}
 		am.playSoundEffect(Sounds.SELECTED);
+
 		return true;
 	}
 
@@ -229,7 +242,8 @@ public class ClipCaptureActivity extends ChapterActivity implements
 
 
 	private synchronized void destroy(){
-		
+        finishClipTimer();
+
 		if(mRec != null){
 			Log.d(getClass().getSimpleName(),"->destroying media recorder");
 			try{
@@ -254,7 +268,8 @@ public class ClipCaptureActivity extends ChapterActivity implements
 	}
 
 	private boolean mCleanup = true;
-
+    private static final int CLIP_DURATION = 4000;
+    private static final int TIMER_UPDATE_INTERVAL = 250;
 	@Override
 	public void onSurfaceTextureAvailable(SurfaceTexture texture, int width,
 			int height) {
@@ -269,7 +284,7 @@ public class ClipCaptureActivity extends ChapterActivity implements
 		mRec.setPreviewDisplay(mSurface);
 
 		mRec.setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH));
-		mRec.setMaxDuration(4000);
+		mRec.setMaxDuration(CLIP_DURATION);
 
 		outputFile = new File(getFilesDir().getAbsolutePath() + "/"
 				+ new BigInteger(130, rand).toString(32) + ".mp4");
@@ -302,10 +317,13 @@ public class ClipCaptureActivity extends ChapterActivity implements
 			finish();
 		}
 
+        mDeterminate = mSlider.startDeterminate(1, 0.f);
+        firstSurfaceUpdate = false;
 		mRec.start();
 		
 	}
 
+    private boolean firstSurfaceUpdate;
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if(keyCode == KeyEvent.KEYCODE_DPAD_CENTER){
@@ -332,5 +350,42 @@ public class ClipCaptureActivity extends ChapterActivity implements
 			int arg2) {}
 
 	@Override
-	public void onSurfaceTextureUpdated(SurfaceTexture arg0) {}
+	public void onSurfaceTextureUpdated(SurfaceTexture arg0) {
+        if(!firstSurfaceUpdate){
+            firstSurfaceUpdate = true;
+            startClipTimer(500);
+        }
+
+    }
+
+    private TimerTask activeTask = null;
+    private void startClipTimer(final long fudge){
+        if(activeTask != null){
+            System.err.println("[startClipTimer] overwriting uncleaned-up activetask before proceeding. finishClipTimer not called yet, will call now");
+            finishClipTimer();
+        }
+        mDeterminate.setPosition(0.f);
+        mDeterminate.show();
+        activeTask = new TimerTask() {
+            private long totalMS = 0;
+            private long fudgeDuration = CLIP_DURATION + fudge;
+            @Override
+            public void run() {
+                long newMS = totalMS + TIMER_UPDATE_INTERVAL;
+                totalMS = Math.min(newMS,fudgeDuration);
+                mDeterminate.setPosition((float) totalMS / fudgeDuration);
+            }
+        };
+        mTimer.scheduleAtFixedRate(activeTask,0,TIMER_UPDATE_INTERVAL);
+    }
+
+    private void finishClipTimer(){
+        if(activeTask != null) {
+            activeTask.cancel();
+            mTimer.purge();
+            activeTask = null;
+            mDeterminate.setPosition(1.f);
+            mDeterminate.hide();
+        }
+    }
 }
