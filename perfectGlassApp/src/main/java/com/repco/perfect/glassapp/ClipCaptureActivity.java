@@ -24,10 +24,12 @@ import android.view.MenuItem;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.TextureView.SurfaceTextureListener;
+import android.view.View;
 import android.view.WindowManager;
 
 import com.google.android.glass.media.Sounds;
 import com.repco.perfect.glassapp.base.ChapterActivity;
+import com.repco.perfect.glassapp.base.TuggableView;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -48,7 +50,7 @@ public class ClipCaptureActivity extends ChapterActivity implements
 		super.onCreate(savedInstanceState);
 		am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 		mTextureView = new TextureView(this);
-		setContentView(mTextureView);
+		setContentView(new TuggableView(this,mTextureView));
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         mTextureView.setSurfaceTextureListener(this);
 	}

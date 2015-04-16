@@ -312,26 +312,32 @@ public class ClipService extends Service {
             return;
         }
 
-        long chapterStart = mCachedActive.clips.get(0).ts.getTime();
-        long now = new Date().getTime();
-        String diffString = DateUtils.getRelativeDateTimeString(this,chapterStart,DateUtils.MINUTE_IN_MILLIS,DateUtils.WEEK_IN_MILLIS,0).toString().split(",")[0];
-        int clipCount = mCachedActive.clips.size();
+        RemoteViews dashView;
+        if(mCachedActive.clips.size() == 0){
+            String dashString = String.format("No chapter in progress");
+            CardBuilder card = new CardBuilder(this,CardBuilder.Layout.TEXT).setText(Html.fromHtml(dashString));
+            dashView = card.getRemoteViews();
+        }else{
 
-        String dashString = String.format("Your chapter has <font color='#99cc33'>%d</font> moments and started <font color='#ddbb11'>%s</font>", clipCount, diffString);
-        BitmapFactory.Options bmOptions = new BitmapFactory.Options();
+            long chapterStart = mCachedActive.clips.get(0).ts.getTime();
+            long now = new Date().getTime();
+            String diffString = DateUtils.getRelativeDateTimeString(this,chapterStart,DateUtils.MINUTE_IN_MILLIS,DateUtils.WEEK_IN_MILLIS,0).toString().split(",")[0];
+            int clipCount = mCachedActive.clips.size();
 
-        CardBuilder card = new CardBuilder(this, CardBuilder.Layout.COLUMNS)
-                .setText(Html.fromHtml(dashString));
+            String dashString = String.format("Your chapter has <font color='#99cc33'>%d</font> moments and started <font color='#ddbb11'>%s</font>", clipCount, diffString);
+            BitmapFactory.Options bmOptions = new BitmapFactory.Options();
 
-        for (int i=0; i< mCachedActive.clips.size() && i<5; i++){
+            CardBuilder card = new CardBuilder(this, CardBuilder.Layout.COLUMNS)
+                    .setText(Html.fromHtml(dashString));
 
-            Bitmap bitmap = BitmapFactory.decodeFile(mCachedActive.clips.get(i).previewPath,bmOptions);
-            card.addImage(bitmap);
+            for (int i=0; i< mCachedActive.clips.size() && i<5; i++) {
 
+                Bitmap bitmap = BitmapFactory.decodeFile(mCachedActive.clips.get(i).previewPath, bmOptions);
+                card.addImage(bitmap);
+
+            }
+            dashView = card.getRemoteViews();
         }
-
-        RemoteViews dashView = card.getRemoteViews();
-
 		mLiveCard.setViews(dashView);
         if (!mLiveCard.isPublished()) {
             mLiveCard.publish(PublishMode.SILENT);

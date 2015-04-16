@@ -16,6 +16,7 @@ import android.view.TextureView.SurfaceTextureListener;
 import android.view.WindowManager;
 
 import com.repco.perfect.glassapp.base.ChapterActivity;
+import com.repco.perfect.glassapp.base.TuggableView;
 import com.repco.perfect.glassapp.storage.Clip;
 import com.repco.perfect.glassapp.storage.StorageHandler;
 
@@ -37,7 +38,7 @@ public class ClipPreviewActivity extends ChapterActivity implements
 		mTextureView = new TextureView(this);
 		mTextureView.setSurfaceTextureListener(this);
 		mPlayer = new MediaPlayer();
-		setContentView(mTextureView);
+		setContentView(new TuggableView(this,mTextureView));
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
 	}
