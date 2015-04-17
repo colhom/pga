@@ -24,6 +24,7 @@ public abstract class ChapterImmersionActivity extends ChapterActivity{
     protected Slider mSlider;
     protected Slider.GracePeriod mGraceSlider = null;
     protected Slider.Determinate mDeterminate;
+    protected Slider.Indeterminate mLoading;
     private Timer mTimer;
     private ImageView mStatusIcon;
     private TextView mStatusText;
@@ -38,8 +39,8 @@ public abstract class ChapterImmersionActivity extends ChapterActivity{
         mTimer = new Timer();
         View contentView = new TuggableView(this,clipCaptureView);
         mSlider = Slider.from(contentView);
-
         setContentView(contentView);
+        mLoading = mSlider.startIndeterminate();
     }
 
     private TimerTask activeTask = null;

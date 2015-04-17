@@ -178,6 +178,7 @@ public class ClipPreviewActivity extends ChapterImmersionActivity implements
 	public void onSurfaceTextureUpdated(SurfaceTexture arg0) {
         if(!firstSurfaceUpdate){
             firstSurfaceUpdate = true;
+            mLoading.hide();
             startClipTimer(chapterDuration,250);
         }
 	}
