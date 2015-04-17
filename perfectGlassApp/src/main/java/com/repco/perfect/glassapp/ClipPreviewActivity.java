@@ -38,6 +38,11 @@ public class ClipPreviewActivity extends ChapterImmersionActivity implements
     }
 
     @Override
+    public int getVoiceMenuId() {
+        return R.menu.preview_voice;
+    }
+
+    @Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		mTextureView = (TextureView) findViewById(R.id.video_texture_view);
@@ -179,7 +184,7 @@ public class ClipPreviewActivity extends ChapterImmersionActivity implements
         if(!firstSurfaceUpdate){
             firstSurfaceUpdate = true;
             mLoading.hide();
-            startClipTimer(chapterDuration,250);
+            startClipTimer(chapterDuration, 250);
         }
 	}
 

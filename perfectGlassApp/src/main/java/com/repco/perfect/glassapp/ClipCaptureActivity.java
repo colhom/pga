@@ -27,6 +27,7 @@ import android.view.TextureView.SurfaceTextureListener;
 import android.view.WindowManager;
 
 import com.google.android.glass.media.Sounds;
+import com.google.android.glass.view.WindowUtils;
 import com.google.android.glass.widget.Slider;
 import com.repco.perfect.glassapp.base.ChapterImmersionActivity;
 
@@ -54,15 +55,18 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
     private boolean clipSaved = false;
     @Override
 	protected void onCreate(Bundle savedInstanceState) {
-        System.out.println("on create");
-		super.onCreate(savedInstanceState);
+        super.onCreate(savedInstanceState);
 
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
         mTextureView = (TextureView) findViewById(R.id.video_texture_view);
         mTextureView.setSurfaceTextureListener(this);
         doneRecording = false;
         clipSaved = false;
 	}
+
+
+
 
 
     @SuppressLint("TrulyRandom")
@@ -114,8 +118,8 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
 	}
 
 	@Override
-	protected void onStop() {
-        super.onStop();
+	protected void onDestroy() {
+        super.onDestroy();
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if(mRec != null){
             Log.d(getClass().getSimpleName(),"->destroying media recorder");
@@ -144,6 +148,7 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
             stopIntent.setAction(ClipService.Action.CS_STOP_SERVICE.toString());
             LocalBroadcastManager.getInstance(this).sendBroadcast(stopIntent);
         }
+
         closeOptionsMenu();
 	}
 	private void resetRecorder() {
@@ -152,8 +157,12 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
 	}
 
 
+    @Override
+    public int getVoiceMenuId() {
+        return R.menu.capture_voice;
+    }
 
-	@Override
+    @Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		MenuInflater ifl = getMenuInflater();
 		ifl.inflate(R.menu.capture, menu);
@@ -195,66 +204,101 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
         finish();
 
     }
+    @Override
+    public boolean onMenuItemSelected(int featureId, MenuItem item) {
+        if(featureId == WindowUtils.FEATURE_VOICE_COMMANDS){
+            switch (item.getItemId()){
+                case R.id.add_clip_voice_mi:
 
+                    addClipToChapter();
+                    break;
+
+                case R.id.retake_clip_voice_mi:
+
+                    retakeClip();
+                    break;
+                case R.id.replay_clip_voice_mi:
+                    replayClip();
+                    break;
+                case R.id.delete_clip_voice_mi:
+                    finish();
+                    break;
+                default:
+                    return true;
+            }
+            return true;
+        }
+        return super.onMenuItemSelected(featureId, item);
+    }
+
+    private void addClipToChapter(){
+        showStatusViews("Adding clip",R.drawable.ic_video_50);
+        mGraceSlider = mSlider.startGracePeriod(new Slider.GracePeriod.Listener() {
+            @Override
+            public void onGracePeriodEnd() {
+                showStatusViews("Clip Added!",R.drawable.ic_done_50);
+                saveClip();
+            }
+
+            @Override
+            public void onGracePeriodCancel() {
+                System.out.println("[saveClip] grace period cancelled");
+            }
+        });
+    }
+
+    private void replayClip(){
+        hideStatusView();
+        MediaPlayer mp = new MediaPlayer();
+        try {
+            mp.setDataSource(this, Uri.fromFile(outputFile));
+        } catch (IOException e) {
+            e.printStackTrace();
+            am.playSoundEffect(Sounds.ERROR);
+            finish();
+        }
+        mSurface.release();
+        mSurface = new Surface(mTextureView.getSurfaceTexture());
+        mp.setSurface(mSurface);
+        mp.setLooping(false);
+
+        mp.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+
+            @Override
+            public void onPrepared(MediaPlayer mp) {
+                startClipTimer(CLIP_DURATION+100,TIMER_UPDATE_INTERVAL);
+                mp.start();
+            }
+        });
+
+        mp.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                finishClipTimer();
+                mp.setSurface(null);
+                mp.release();
+                showStatusViews("Tap for Options",R.drawable.ic_video_50);
+            }
+        });
+        mp.prepareAsync();
+    }
+
+    private void retakeClip(){
+        Intent intent = getIntent();
+        finish();
+        startActivity(intent);
+    }
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
-        case R.id.keep_clip_mi:
-            showStatusViews("Adding clip",R.drawable.ic_video_50);
-            mGraceSlider = mSlider.startGracePeriod(new Slider.GracePeriod.Listener() {
-                @Override
-                public void onGracePeriodEnd() {
-                    showStatusViews("Clip Added!",R.drawable.ic_done_50);
-                    saveClip();
-                }
-
-                @Override
-                public void onGracePeriodCancel() {
-                    System.out.println("[saveClip] grace period cancelled");
-                }
-            });
-
+        case R.id.add_clip_mi:
+            addClipToChapter();
 			break;
 		case R.id.replay_clip_mi:
-            hideStatusView();
-			MediaPlayer mp = new MediaPlayer();
-			try {
-				mp.setDataSource(this, Uri.fromFile(outputFile));
-			} catch (IOException e) {
-				e.printStackTrace();
-				am.playSoundEffect(Sounds.ERROR);
-				finish();
-			}
-			mSurface.release();
-			mSurface = new Surface(mTextureView.getSurfaceTexture());
-			mp.setSurface(mSurface);
-			mp.setLooping(false);
-
-			mp.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-				
-				@Override
-				public void onPrepared(MediaPlayer mp) {
-                    startClipTimer(CLIP_DURATION+100,TIMER_UPDATE_INTERVAL);
-                    mp.start();
-				}
-			});
-			
-			mp.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-				@Override
-				public void onCompletion(MediaPlayer mp) {
-                    finishClipTimer();
-					mp.setSurface(null);
-					mp.release();
-					showStatusViews("Tap for Options",R.drawable.ic_video_50);
-				}
-			});
-			mp.prepareAsync();
-			
+			replayClip();
 			break;
 		case R.id.retake_clip_mi:
-            Intent intent = getIntent();
-			finish();
-            startActivity(intent);
+            retakeClip();
 			break;
 		default:
 			return false;
