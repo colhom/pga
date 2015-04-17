@@ -10,11 +10,5 @@ import com.repco.perfect.glassapp.storage.Chapter;
  */
 public class ChapterActivity extends Activity {
 
-    protected Chapter mChapter;
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        mChapter = (Chapter)getIntent().getSerializableExtra("chapter");
-    }
 
 }

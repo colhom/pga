@@ -257,9 +257,7 @@ public class ClipService extends Service {
                         mDashHandler.post(mDashUpdateRunnable);
                         clipTaken = true;
                     }
-                    String outputPath = intent.getStringExtra("clipPath");
-                    String previewPath = intent.getStringExtra("previewPath");
-                    Clip clip = new Clip(outputPath, previewPath);
+                    Clip clip = (Clip) intent.getSerializableExtra("clip");
                     clip.dirty = true;
                     sendStorageMessage(StorageHandler.PUSH_CLIP, clip);
                     sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null);
@@ -387,7 +385,7 @@ public class ClipService extends Service {
         }
         // We're database backed, so state should be "persistent" oustide
         // of this process lifecycle
-        return START_STICKY;
+        return START_STICKY_COMPATIBILITY;
 	}
 
 	@Override

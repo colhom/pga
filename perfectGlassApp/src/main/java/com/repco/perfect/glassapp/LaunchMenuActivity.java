@@ -1,16 +1,26 @@
 package com.repco.perfect.glassapp;
 
 import android.content.Intent;
+import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
 import com.repco.perfect.glassapp.base.ChapterActivity;
+import com.repco.perfect.glassapp.storage.Chapter;
 
 public class LaunchMenuActivity extends ChapterActivity {
     private final String LTAG=this.getClass().getSimpleName();
-	@Override
+
+    private Chapter mChapter;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        mChapter = (Chapter) getIntent().getSerializableExtra("chapter");
+    }
+
+    @Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		getMenuInflater().inflate(R.menu.launcher, menu);
 		return true;

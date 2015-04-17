@@ -2,7 +2,7 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/add_clip_voice_mi"
-        android:title="SAVE_VIDEO" />
+        android:title="SAVE_THIS" />
     <item
         android:id="@+id/replay_clip_voice_mi"
         android:title="PLAY_VIDEO" />

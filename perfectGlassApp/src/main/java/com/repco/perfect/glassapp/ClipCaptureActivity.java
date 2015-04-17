@@ -1,160 +1,130 @@
 package com.repco.perfect.glassapp;
 
-import android.annotation.SuppressLint;
-import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Point;
-import android.graphics.SurfaceTexture;
-import android.media.CamcorderProfile;
-import android.media.MediaPlayer;
-import android.media.MediaRecorder;
-import android.media.ThumbnailUtils;
-import android.net.Uri;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
-import android.provider.MediaStore.Video.Thumbnails;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
-import android.view.Display;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.Surface;
-import android.view.TextureView;
-import android.view.TextureView.SurfaceTextureListener;
 import android.view.WindowManager;
 
 import com.google.android.glass.media.Sounds;
 import com.google.android.glass.view.WindowUtils;
 import com.google.android.glass.widget.Slider;
-import com.repco.perfect.glassapp.base.ChapterImmersionActivity;
+import com.repco.perfect.glassapp.base.ChapterStatusActivity;
+import com.repco.perfect.glassapp.storage.Chapter;
+import com.repco.perfect.glassapp.storage.Clip;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.math.BigInteger;
-import java.security.SecureRandom;
 
-public class ClipCaptureActivity extends ChapterImmersionActivity implements
-		MediaRecorder.OnInfoListener, MediaRecorder.OnErrorListener,
-		SurfaceTextureListener {
+public class ClipCaptureActivity extends ChapterStatusActivity {
 
-
-	private TextureView mTextureView = null;
-
-	private Surface mSurface = null;
 
     @Override
     public int getLayoutId() {
-        return R.layout.video_immersion;
+        return R.layout.clip_capture;
     }
 
     private boolean clipSaved = false;
+    private Clip mClip;
+
     @Override
-	protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
-        mTextureView = (TextureView) findViewById(R.id.video_texture_view);
-        mTextureView.setSurfaceTextureListener(this);
-        doneRecording = false;
         clipSaved = false;
-	}
+        mClip = null;
+        captureClip();
+    }
 
+    private static final int PREVIEW_REQUEST_CODE = 1,
+            CAPTURE_REQUEST_CODE = 2;
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        switch (requestCode) {
+            case CAPTURE_REQUEST_CODE:
+                showStatusViews("",R.drawable.ic_video_50);
+                mClip = new Clip(
+                        data.getStringExtra("outputFile"),
+                        data.getStringExtra("previewFile")
+                );
 
-
-
-    @SuppressLint("TrulyRandom")
-	private final SecureRandom rand = new SecureRandom();
-
-	File outputFile;
-
-	private Bitmap mPreview;
-
-    private boolean doneRecording;
-	@Override
-	public void onInfo(MediaRecorder mr, int what, int extra) {
-		switch (what) {
-		case MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED:
-
-            am.playSoundEffect(Sounds.SUCCESS);
-
-            showStatusViews("Tap for Options",R.drawable.ic_video_50);
-
-            finishClipTimer();
-
-			resetRecorder();
-
-			mPreview = ThumbnailUtils.createVideoThumbnail(
-					outputFile.getAbsolutePath(), Thumbnails.FULL_SCREEN_KIND);
-
-
-			doneRecording = true;
-			break;
-		}
-
-	}
-
-	@Override
-	public void openOptionsMenu() {
-        if(mSurface.isValid()) {
-            if (mPreview != null) {
-                Canvas c = mSurface.lockCanvas(null);
-                try {
-                    c.drawBitmap(mPreview, (float) 0.0, (float) 0.0, null);
-                } finally {
-                    mSurface.unlockCanvasAndPost(c);
+                Bitmap bg = BitmapFactory.decodeFile(mClip.previewPath);
+                if(bg != null){
+                    mBackgroundImageView.setImageBitmap(bg);
                 }
-            }
-            super.openOptionsMenu();
-        }else{
-            Log.w(LTAG,"not opening options menu because surface is invalid. assuming we're dead");
-        }
-	}
+                if (resultCode == RESULT_CANCELED) {
+                    finish();
+                }
 
-	@Override
-	protected void onDestroy() {
+                break;
+            case PREVIEW_REQUEST_CODE:
+                showStatusViews("",R.drawable.ic_video_50);
+                break;
+
+            default:
+
+                break;
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
         super.onDestroy();
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        if(mRec != null){
-            Log.d(getClass().getSimpleName(),"->destroying media recorder");
-            try{
-                mRec.stop();
-            }catch(IllegalStateException e){
-                Log.d(getClass().getSimpleName(),"media recorder already stopped");
-            }
-            mRec.reset();
-            mRec.release();
-            mRec = null;
+
+
+        Intent returnIntent = new Intent();
+        if (clipSaved) {
+            //Save clip --> send files to service, leave running
+            returnIntent.setAction(ClipService.Action.CS_SAVE_CLIP.toString());
+            Bundle b = new Bundle();
+            b.putSerializable("clip", mClip);
+            returnIntent.putExtras(b);
+
+        } else {
+            //No save clip --> delete files, stop service
+            cleanupFiles();
+            returnIntent.setAction(ClipService.Action.CS_STOP_SERVICE.toString());
         }
-
-
-        if(mCleanup){
-            if(outputFile != null && outputFile.exists()){
-                Log.i(LTAG, "Cleaning up "+outputFile.getAbsolutePath());
-                if(!outputFile.delete()){
-                    throw new RuntimeException("Could not delete output file "+outputFile.getAbsolutePath());
-                }
-            }
-        }
-
-        if(!clipSaved){
-            Intent stopIntent = new Intent();
-            stopIntent.setAction(ClipService.Action.CS_STOP_SERVICE.toString());
-            LocalBroadcastManager.getInstance(this).sendBroadcast(stopIntent);
-        }
-
+        LocalBroadcastManager.getInstance(this).sendBroadcast(returnIntent);
         closeOptionsMenu();
-	}
-	private void resetRecorder() {
-		mRec.stop();
-		mRec.reset();
-	}
+    }
+
+    private void captureClip() {
+        hideStatusView();
+        if(mClip != null){
+            cleanupFiles();
+            mClip = null;
+        }
+        startActivityForResult(new Intent(this, ClipRecorderActivity.class),CAPTURE_REQUEST_CODE);
+
+    }
+    private void cleanupFiles(){
+        if(mClip == null){
+            return;
+        }
+        for (String path : new String[]{mClip.videoPath,mClip.previewPath}) {
+            if(path == null) {
+                continue;
+            }
+            File f = new File(path);
+            if (f.exists()) {
+                Log.i(LTAG, "Cleaning up " + f.getAbsolutePath());
+                if (!f.delete()) {
+                    throw new RuntimeException("Could not delete output file " + f.getAbsolutePath());
+                }
+            }else{
+                Log.w(LTAG,"Could not find file "+path+", won't clean up");
+            }
+        }
+    }
+
 
 
     @Override
@@ -169,41 +139,6 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
 		return true;
 	}
 
-    private void saveClip(){
-        File previewFile = new File(outputFile.getAbsolutePath() + ".thumb.jpg");
-
-        Display display = ((WindowManager) getSystemService(Context.WINDOW_SERVICE))
-                .getDefaultDisplay();
-        Point size = new Point();
-        display.getSize(size);
-
-        Bitmap preview = Bitmap.createScaledBitmap(mPreview, size.x,
-                size.y, true);
-        FileOutputStream previewStream = null;
-        try {
-            previewStream = new FileOutputStream(previewFile);
-            preview.compress(Bitmap.CompressFormat.JPEG, 50,previewStream);
-        }catch(FileNotFoundException e){
-            throw new RuntimeException(e);
-        }finally {
-            if(previewStream != null){
-                try {
-                    previewStream.close();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }
-        Intent returnIntent = new Intent();
-        returnIntent.setAction(ClipService.Action.CS_SAVE_CLIP.toString());
-        returnIntent.putExtra("clipPath", outputFile.getAbsolutePath());
-        returnIntent.putExtra("previewPath",previewFile.getAbsolutePath());
-        LocalBroadcastManager.getInstance(this).sendBroadcast(returnIntent);
-        mCleanup = false;
-        clipSaved = true;
-        finish();
-
-    }
     @Override
     public boolean onMenuItemSelected(int featureId, MenuItem item) {
         if(featureId == WindowUtils.FEATURE_VOICE_COMMANDS){
@@ -215,7 +150,7 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
 
                 case R.id.retake_clip_voice_mi:
 
-                    retakeClip();
+                    captureClip();
                     break;
                 case R.id.replay_clip_voice_mi:
                     replayClip();
@@ -237,57 +172,32 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
             @Override
             public void onGracePeriodEnd() {
                 showStatusViews("Clip Added!",R.drawable.ic_done_50);
-                saveClip();
+                clipSaved = true;
+                finish();
             }
 
             @Override
             public void onGracePeriodCancel() {
                 System.out.println("[saveClip] grace period cancelled");
+                clipSaved = false; // just to be "safe".
+                finish();
             }
         });
     }
 
     private void replayClip(){
         hideStatusView();
-        MediaPlayer mp = new MediaPlayer();
-        try {
-            mp.setDataSource(this, Uri.fromFile(outputFile));
-        } catch (IOException e) {
-            e.printStackTrace();
-            am.playSoundEffect(Sounds.ERROR);
-            finish();
-        }
-        mSurface.release();
-        mSurface = new Surface(mTextureView.getSurfaceTexture());
-        mp.setSurface(mSurface);
-        mp.setLooping(false);
+        Chapter clipChapter = new Chapter();
+        clipChapter.clips.add(mClip);
 
-        mp.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+        Intent replayClip = new Intent(this,ClipPreviewActivity.class);
+        Bundle b = new Bundle();
+        b.putSerializable("chapter",clipChapter);
+        replayClip.putExtras(b);
 
-            @Override
-            public void onPrepared(MediaPlayer mp) {
-                startClipTimer(CLIP_DURATION+100,TIMER_UPDATE_INTERVAL);
-                mp.start();
-            }
-        });
-
-        mp.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-            @Override
-            public void onCompletion(MediaPlayer mp) {
-                finishClipTimer();
-                mp.setSurface(null);
-                mp.release();
-                showStatusViews("Tap for Options",R.drawable.ic_video_50);
-            }
-        });
-        mp.prepareAsync();
+        startActivityForResult(replayClip, PREVIEW_REQUEST_CODE);
     }
 
-    private void retakeClip(){
-        Intent intent = getIntent();
-        finish();
-        startActivity(intent);
-    }
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
@@ -298,7 +208,7 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
 			replayClip();
 			break;
 		case R.id.retake_clip_mi:
-            retakeClip();
+            captureClip();
 			break;
 		default:
 			return false;
@@ -308,110 +218,17 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
 		return true;
 	}
 
-	@Override
-	public void onError(MediaRecorder mr, int what, int extra) {
-		Log.e(getClass().getSimpleName(), "MediaRecorder onError: " + what
-				+ " " + extra);
-		finish();
-	}
+    private static final String LTAG = ClipCaptureActivity.class.getSimpleName();
 
-
-
-
-	private MediaRecorder mRec;
-	private static final String LTAG = ClipCaptureActivity.class.getSimpleName();
-
-
-	private boolean mCleanup = true;
-    private static final int CLIP_DURATION = 4000;
-    private static final int TIMER_UPDATE_INTERVAL = 250;
-	@Override
-	public void onSurfaceTextureAvailable(SurfaceTexture texture, int width,
-			int height) {
-		
-		mSurface = new Surface(texture);
-		
-		mRec = new MediaRecorder();
-
-		mRec.setAudioSource(MediaRecorder.AudioSource.DEFAULT);
-		mRec.setVideoSource(MediaRecorder.VideoSource.DEFAULT);
-
-		mRec.setPreviewDisplay(mSurface);
-
-		mRec.setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH));
-		mRec.setMaxDuration(CLIP_DURATION);
-
-		outputFile = new File(getFilesDir().getAbsolutePath() + "/"
-				+ new BigInteger(130, rand).toString(32) + ".mp4");
-
-		try {
-			if (!outputFile.createNewFile()) {
-				throw new RuntimeException(outputFile.getAbsolutePath()+" already exists!");
-			}
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-		mRec.setOutputFile(outputFile.getAbsolutePath());
-		mCleanup = true;
-		
-		Log.i(getClass().getSimpleName(), "Output path is " + outputFile);
-		mRec.setOnInfoListener(this);
-		am.playSoundEffect(Sounds.SELECTED);
-
-		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
-		try {
-			mRec.prepare();
-		} catch (IllegalStateException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			finish();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			finish();
-		}
-
-		mRec.start();
-        mDeterminate = mSlider.startDeterminate(1, 0.f);
-        firstSurfaceUpdate = false;
-	}
-
-    private boolean firstSurfaceUpdate;
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if(keyCode == KeyEvent.KEYCODE_DPAD_CENTER){
-            if(doneRecording){
-                openOptionsMenu();
-            }else{
-                am.playSoundEffect(Sounds.DISALLOWED);
-            }
-
+            openOptionsMenu();
             return true;
         }
         return super.onKeyDown(keyCode, event);
     }
 
-    @Override
-	public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
-        System.out.println("Surface texture destroyed");
-        mSurface.release();
-		return true;
-	}
-
-	@Override
-	public void onSurfaceTextureSizeChanged(SurfaceTexture arg0, int arg1,
-			int arg2) {}
-
-	@Override
-	public void onSurfaceTextureUpdated(SurfaceTexture arg0) {
-        if(!firstSurfaceUpdate){
-            firstSurfaceUpdate = true;
-            mLoading.hide();
-            startClipTimer(CLIP_DURATION+500,TIMER_UPDATE_INTERVAL);
-        }
-
-    }
 
 
 }

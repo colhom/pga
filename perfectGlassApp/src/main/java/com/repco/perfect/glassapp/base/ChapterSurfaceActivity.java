@@ -5,6 +5,7 @@ import android.graphics.drawable.Drawable;
 import android.media.AudioManager;
 import android.os.Bundle;
 import android.view.Menu;
+import android.view.TextureView;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -19,7 +20,7 @@ import java.util.TimerTask;
 /**
  * Created by chom on 4/16/15.
  */
-public abstract class ChapterImmersionActivity extends ChapterActivity{
+public abstract class ChapterSurfaceActivity extends ChapterActivity implements TextureView.SurfaceTextureListener{
 
     protected AudioManager am;
     protected Slider mSlider;
@@ -27,51 +28,29 @@ public abstract class ChapterImmersionActivity extends ChapterActivity{
     protected Slider.Determinate mDeterminate;
     protected Slider.Indeterminate mLoading;
     private Timer mTimer;
-    private ImageView mStatusIcon;
-    private TextView mStatusText;
-    private View mContentView;
-    private boolean mVoiceEnabled;
+
+
+    protected TextureView mTextureView;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().requestFeature(WindowUtils.FEATURE_VOICE_COMMANDS);
 
         am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        View clipCaptureView = getLayoutInflater().inflate(getLayoutId(),null);
-        mStatusIcon = (ImageView) clipCaptureView.findViewById(R.id.status_icon);
-        mStatusText = (TextView) clipCaptureView.findViewById(R.id.status_text);
+
         mTimer = new Timer();
-        mContentView = new TuggableView(this,clipCaptureView);
-        mSlider = Slider.from(mContentView);
-        setContentView(mContentView);
+        mTextureView = new TextureView(this);
+        View cv = new TuggableView(this,mTextureView);
+        mSlider = Slider.from(cv);
+        setContentView(cv);
 
-
-        hideStatusView();
         mLoading = mSlider.startIndeterminate();
     }
-    public abstract int getLayoutId();
-    public abstract int getVoiceMenuId();
 
-    @Override
-    public boolean onPreparePanel(int featureId, View view, Menu menu) {
-        if(featureId == WindowUtils.FEATURE_VOICE_COMMANDS){
-            return mVoiceEnabled;
-        }
-        return super.onPreparePanel(featureId, view, menu);
-    }
 
-    @Override
-    public boolean onCreatePanelMenu(int featureId, Menu menu) {
-        if(featureId == WindowUtils.FEATURE_VOICE_COMMANDS){
-            getMenuInflater().inflate(getVoiceMenuId(),menu);
-            return true;
-        }
-        return super.onCreatePanelMenu(featureId, menu);
-    }
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        finishGraceTimer();
         finishClipTimer();
     }
 
@@ -105,26 +84,6 @@ public abstract class ChapterImmersionActivity extends ChapterActivity{
         }
     }
 
-    protected void finishGraceTimer(){
-        if(mGraceSlider != null){
-            mGraceSlider.cancel();
-        }
-    }
 
-    protected void showStatusViews(String text, int iconID){
-        mStatusText.setText(text);
-        Drawable src = getResources().getDrawable(iconID);
-        mStatusIcon.setImageDrawable(src);
-        mStatusIcon.setVisibility(View.VISIBLE);
-        mStatusText.setVisibility(View.VISIBLE);
-        mVoiceEnabled = true;
-        mContentView.requestLayout();
-    }
 
-    protected void hideStatusView(){
-        mStatusIcon.setVisibility(View.INVISIBLE);
-        mStatusText.setVisibility(View.INVISIBLE);
-        mVoiceEnabled = false;
-        mContentView.requestLayout();
-    }
 }

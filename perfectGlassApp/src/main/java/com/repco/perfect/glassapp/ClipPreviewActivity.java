@@ -16,39 +16,31 @@ import android.view.TextureView.SurfaceTextureListener;
 import android.view.WindowManager;
 
 import com.google.android.glass.widget.Slider;
-import com.repco.perfect.glassapp.base.ChapterImmersionActivity;
+import com.repco.perfect.glassapp.base.ChapterSurfaceActivity;
+import com.repco.perfect.glassapp.storage.Chapter;
 import com.repco.perfect.glassapp.storage.Clip;
 import com.repco.perfect.glassapp.storage.StorageHandler;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class ClipPreviewActivity extends ChapterImmersionActivity implements
-		SurfaceTextureListener {
+public class ClipPreviewActivity extends ChapterSurfaceActivity {
 
 	private static final String LTAG = ClipPreviewActivity.class
 			.getSimpleName();
-	TextureView mTextureView;
-	MediaPlayer mPlayer;
+    private MediaPlayer mPlayer;
 
-    @Override
-    public int getLayoutId() {
-        return R.layout.video_immersion;
-    }
-
-    @Override
-    public int getVoiceMenuId() {
-        return R.menu.preview_voice;
-    }
-
+    private Chapter mChapter;
     @Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		mTextureView = (TextureView) findViewById(R.id.video_texture_view);
-		mTextureView.setSurfaceTextureListener(this);
 		mPlayer = new MediaPlayer();
+        mChapter = (Chapter) getIntent().getSerializableExtra("chapter");
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        mTextureView.setSurfaceTextureListener(this);
 	}
 
 	@Override
@@ -68,7 +60,6 @@ public class ClipPreviewActivity extends ChapterImmersionActivity implements
 		mPlayer.setSurface(surface);
 
 
-        Log.d(LTAG, mChapter.toString());
         final Queue<Clip> clips = new LinkedBlockingQueue<Clip>(mChapter.clips);
 
 
@@ -83,7 +74,6 @@ public class ClipPreviewActivity extends ChapterImmersionActivity implements
                     // no clips left;
                     surface.release();
                     finishClipTimer();
-                    showStatusViews("Tap for Options",R.drawable.ic_video_50);
                     return;
                 }
 
@@ -110,61 +100,6 @@ public class ClipPreviewActivity extends ChapterImmersionActivity implements
         trigger.onCompletion(mPlayer);
 	}
     private long chapterDuration;
-	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
-		getMenuInflater().inflate(R.menu.preview, menu);
-		return true;
-	}
-
-	@Override
-	public boolean onPrepareOptionsMenu(final Menu menu) {
-
-        if (mChapter.clips.size() < StorageHandler.MIN_CHAPTER_SIZE) {
-            menu.getItem(0).setEnabled(false);
-        }
-
-        return true;
-	}
-
-	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
-		switch (item.getItemId()) {
-		case R.id.publish_chapter_item:
-            showStatusViews("Uploading Chapter...",R.drawable.ic_video_50);
-            mGraceSlider = mSlider.startGracePeriod(new Slider.GracePeriod.Listener() {
-                @Override
-                public void onGracePeriodEnd() {
-                    showStatusViews("Chapter Uploaded!",R.drawable.ic_done_50);
-                    Intent intent = new Intent();
-                    intent.setAction(ClipService.Action.CS_PUBLISH_CHAPTER.toString());
-                    LocalBroadcastManager.getInstance(ClipPreviewActivity.this).sendBroadcast(intent);
-                    finish();
-                }
-
-                @Override
-                public void onGracePeriodCancel() {
-
-                }
-            });
-
-			break;
-		case R.id.exit_preview_item:
-			finish();
-			break;
-		default:
-			break;
-		}
-		return true;
-	}
-
-	@Override
-	public boolean onKeyDown(int keyCode, KeyEvent event) {
-		if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
-			openOptionsMenu();
-			return true;
-		}
-		return super.onKeyDown(keyCode, event);
-	}
 
 	@Override
 	public boolean onSurfaceTextureDestroyed(SurfaceTexture arg0) {
