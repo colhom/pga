@@ -24,7 +24,6 @@ import android.text.Html;
 import android.text.format.DateUtils;
 import android.util.Log;
 import android.widget.RemoteViews;
-import android.view.View;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 
@@ -36,7 +35,6 @@ import com.repco.perfect.glassapp.storage.Chapter;
 import com.repco.perfect.glassapp.storage.Clip;
 import com.repco.perfect.glassapp.storage.StorageHandler;
 import com.repco.perfect.glassapp.storage.StorageService;
-import com.repco.perfect.glassapp.ui.LiveCardBindings;
 
 import java.util.Date;
 import java.util.concurrent.CountDownLatch;
@@ -68,27 +66,20 @@ public class ClipService extends Service {
 		public void onServiceConnected(ComponentName arg0, IBinder binder) {
 			Log.i(LTAG, "Storage service connection connected");
 			mStorageMessenger = new Messenger(binder);
-            Message m = Message.obtain();
-            m.what = StorageHandler.GET_ACTIVE_CHAPTER;
-            m.arg1 = CBID_INITIALIZE_LIVECARD;
-            m.replyTo = mStorageReplyMessenger;
-            try {
-                mStorageMessenger.send(m);
-            } catch (RemoteException e) {
-                throw new RuntimeException(e);
-            }
             storageLatch.countDown();
-            mDashHandler.post(mDashUpdateRunnable);
 		}
 	};
 
     private CountDownLatch storageLatch;
+
+    private boolean clipTaken;
 	@Override
 	public void onCreate() {
 		super.onCreate();
 		AUTHORITY = getResources().getString(R.string.provider_type);
 		ACCOUNT_TYPE = getResources().getString(R.string.account_type);
 
+        clipTaken = false;
 
 		AccountManager accountManager = (AccountManager) getSystemService(ACCOUNT_SERVICE);
 
@@ -148,6 +139,9 @@ public class ClipService extends Service {
                 return;
             }
             updateDash();
+
+            //This is the recurring 30 second check to update
+            //the relative timestamp on the live card
             mDashHandler.postDelayed(this,UPDATE_DASH_DELAY);
         }
     };
@@ -255,12 +249,21 @@ public class ClipService extends Service {
 
             switch (action){
                 case CS_SAVE_CLIP:
+                    if(!clipTaken){
+                        sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null,CBID_INITIALIZE_LIVECARD);
+                        //This runnable re-adds itself to queue every 30 seconds
+                        //so that the relative timestamp stays up to date on the
+                        //live card
+                        mDashHandler.post(mDashUpdateRunnable);
+                        clipTaken = true;
+                    }
                     String outputPath = intent.getStringExtra("clipPath");
                     String previewPath = intent.getStringExtra("previewPath");
                     Clip clip = new Clip(outputPath, previewPath);
                     clip.dirty = true;
                     sendStorageMessage(StorageHandler.PUSH_CLIP, clip);
                     sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null);
+                    mAudio.playSoundEffect(Sounds.SUCCESS);
                     break;
                 case CS_PUBLISH_CHAPTER:
                     sendStorageMessage(StorageHandler.END_CHAPTER, null);
@@ -287,25 +290,36 @@ public class ClipService extends Service {
     public void sendStorageMessage(int what,Object obj){
         sendStorageMessage(what,obj,0);
     }
-    public void sendStorageMessage(int what, Object obj, int cbId) {
-        try{
-            if(!storageLatch.await(10,TimeUnit.SECONDS)){
-                throw new RuntimeException("Timed out waiting for storage connection");
-            }
-        }catch(InterruptedException e){
-            throw new RuntimeException(e);
-        }
-        Message msg = Message.obtain();
-        msg.what = what;
-        msg.obj = obj;
-        msg.arg1 = cbId;
-        msg.replyTo = mStorageReplyMessenger;
-        try {
-            mStorageMessenger.send(msg);
-        } catch (RemoteException e) {
-            throw new RuntimeException(e);
-        }
+
+
+    public  void sendStorageMessage(final int what, final Object obj, final int callbackID) {
+        mDashHandler.post(
+                new Runnable() {
+                    @Override
+                    public void run() {
+
+                        try {
+                            if (!storageLatch.await(10, TimeUnit.SECONDS)) {
+                                throw new RuntimeException("Timed out waiting for storage connection");
+                            }
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        Message msg = Message.obtain();
+                        msg.what = what;
+                        msg.obj = obj;
+                        msg.arg1 = callbackID;
+                        msg.replyTo = mStorageReplyMessenger;
+                        try {
+                            mStorageMessenger.send(msg);
+                        } catch (RemoteException e) {
+                            throw new RuntimeException(e);
+                        }
+
+                    }
+                });
     }
+
     private Chapter mCachedActive;
 	private void updateDash() {
         if(mCachedActive == null){

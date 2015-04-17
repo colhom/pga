@@ -51,6 +51,7 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
         return R.layout.video_immersion;
     }
 
+    private boolean clipSaved = false;
     @Override
 	protected void onCreate(Bundle savedInstanceState) {
         System.out.println("on create");
@@ -60,6 +61,7 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
         mTextureView = (TextureView) findViewById(R.id.video_texture_view);
         mTextureView.setSurfaceTextureListener(this);
         doneRecording = false;
+        clipSaved = false;
 	}
 
 
@@ -115,7 +117,33 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
 	protected void onStop() {
         super.onStop();
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        destroy();
+        if(mRec != null){
+            Log.d(getClass().getSimpleName(),"->destroying media recorder");
+            try{
+                mRec.stop();
+            }catch(IllegalStateException e){
+                Log.d(getClass().getSimpleName(),"media recorder already stopped");
+            }
+            mRec.reset();
+            mRec.release();
+            mRec = null;
+        }
+
+
+        if(mCleanup){
+            if(outputFile != null && outputFile.exists()){
+                Log.i(LTAG, "Cleaning up "+outputFile.getAbsolutePath());
+                if(!outputFile.delete()){
+                    throw new RuntimeException("Could not delete output file "+outputFile.getAbsolutePath());
+                }
+            }
+        }
+
+        if(!clipSaved){
+            Intent stopIntent = new Intent();
+            stopIntent.setAction(ClipService.Action.CS_STOP_SERVICE.toString());
+            LocalBroadcastManager.getInstance(this).sendBroadcast(stopIntent);
+        }
         closeOptionsMenu();
 	}
 	private void resetRecorder() {
@@ -159,13 +187,15 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
         }
         Intent returnIntent = new Intent();
         returnIntent.setAction(ClipService.Action.CS_SAVE_CLIP.toString());
-        returnIntent.putExtra("clipPath",outputFile.getAbsolutePath());
+        returnIntent.putExtra("clipPath", outputFile.getAbsolutePath());
         returnIntent.putExtra("previewPath",previewFile.getAbsolutePath());
         LocalBroadcastManager.getInstance(this).sendBroadcast(returnIntent);
         mCleanup = false;
+        clipSaved = true;
         finish();
 
     }
+
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
@@ -247,31 +277,6 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
 	private MediaRecorder mRec;
 	private static final String LTAG = ClipCaptureActivity.class.getSimpleName();
 
-
-	private synchronized void destroy(){
-
-		if(mRec != null){
-			Log.d(getClass().getSimpleName(),"->destroying media recorder");
-			try{
-				mRec.stop();
-			}catch(IllegalStateException e){
-				Log.d(getClass().getSimpleName(),"media recorder already stopped");
-			}
-            mRec.reset();
-			mRec.release();
-			mRec = null;
-		}
-
-		
-		if(mCleanup){
-			if(outputFile != null && outputFile.exists()){
-				Log.i(LTAG, "Cleaning up "+outputFile.getAbsolutePath());
-				if(!outputFile.delete()){
-					throw new RuntimeException("Could not delete output file "+outputFile.getAbsolutePath());
-				}
-			}
-		}
-	}
 
 	private boolean mCleanup = true;
     private static final int CLIP_DURATION = 4000;
