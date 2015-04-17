@@ -7,6 +7,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Point;
 import android.graphics.SurfaceTexture;
+import android.graphics.drawable.Drawable;
 import android.media.AudioManager;
 import android.media.CamcorderProfile;
 import android.media.MediaPlayer;
@@ -27,10 +28,13 @@ import android.view.TextureView;
 import android.view.TextureView.SurfaceTextureListener;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 import com.google.android.glass.media.Sounds;
 import com.google.android.glass.widget.Slider;
 import com.repco.perfect.glassapp.base.ChapterActivity;
+import com.repco.perfect.glassapp.base.ChapterImmersionActivity;
 import com.repco.perfect.glassapp.base.TuggableView;
 
 import java.io.File;
@@ -42,36 +46,31 @@ import java.security.SecureRandom;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class ClipCaptureActivity extends ChapterActivity implements
+public class ClipCaptureActivity extends ChapterImmersionActivity implements
 		MediaRecorder.OnInfoListener, MediaRecorder.OnErrorListener,
 		SurfaceTextureListener {
 
-	private AudioManager am;
+
 	private TextureView mTextureView = null;
-    private Slider mSlider;
-    private Slider.Determinate mDeterminate;
-    private Timer mTimer;
+
 	private Surface mSurface = null;
-	@Override
+
+    @Override
+    public int getLayoutId() {
+        return R.layout.clip_capture;
+    }
+
+    @Override
 	protected void onCreate(Bundle savedInstanceState) {
         System.out.println("on create");
 		super.onCreate(savedInstanceState);
-		am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-		mTextureView = new TextureView(this);
-        View contentView = new TuggableView(this,mTextureView);
-        mSlider = Slider.from(contentView);
-		setContentView(contentView);
+
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        mTextureView = (TextureView) findViewById(R.id.video_view);
         mTextureView.setSurfaceTextureListener(this);
-        mTimer = new Timer();
         doneRecording = false;
 	}
 
-    @Override
-    protected void onDestroy() {
-
-        super.onDestroy();
-    }
 
     @SuppressLint("TrulyRandom")
 	private final SecureRandom rand = new SecureRandom();
@@ -86,6 +85,10 @@ public class ClipCaptureActivity extends ChapterActivity implements
 		switch (what) {
 		case MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED:
 
+            am.playSoundEffect(Sounds.SUCCESS);
+
+            showStatusViews("",R.drawable.ic_video_50);
+
             finishClipTimer();
 
 			resetRecorder();
@@ -94,7 +97,6 @@ public class ClipCaptureActivity extends ChapterActivity implements
 					outputFile.getAbsolutePath(), Thumbnails.FULL_SCREEN_KIND);
 
 
-			am.playSoundEffect(Sounds.SUCCESS);
 			doneRecording = true;
 			break;
 		}
@@ -177,9 +179,23 @@ public class ClipCaptureActivity extends ChapterActivity implements
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
         case R.id.keep_clip_mi:
-            saveClip();
+            showStatusViews("Adding clip",R.drawable.ic_video_50);
+            mGraceSlider = mSlider.startGracePeriod(new Slider.GracePeriod.Listener() {
+                @Override
+                public void onGracePeriodEnd() {
+                    showStatusViews("Clip Added!",R.drawable.ic_done_50);
+                    saveClip();
+                }
+
+                @Override
+                public void onGracePeriodCancel() {
+                    System.out.println("[saveClip] grace period cancelled");
+                }
+            });
+
 			break;
 		case R.id.replay_clip_mi:
+            hideStatusView();
 			MediaPlayer mp = new MediaPlayer();
 			try {
 				mp.setDataSource(this, Uri.fromFile(outputFile));
@@ -197,7 +213,7 @@ public class ClipCaptureActivity extends ChapterActivity implements
 				
 				@Override
 				public void onPrepared(MediaPlayer mp) {
-                    startClipTimer(100);
+                    startClipTimer(CLIP_DURATION+100,TIMER_UPDATE_INTERVAL);
                     mp.start();
 				}
 			});
@@ -208,7 +224,7 @@ public class ClipCaptureActivity extends ChapterActivity implements
                     finishClipTimer();
 					mp.setSurface(null);
 					mp.release();
-					openOptionsMenu();
+					showStatusViews("",R.drawable.ic_video_50);
 				}
 			});
 			mp.prepareAsync();
@@ -242,6 +258,7 @@ public class ClipCaptureActivity extends ChapterActivity implements
 
 
 	private synchronized void destroy(){
+        finishGraceTimer();
         finishClipTimer();
 
 		if(mRec != null){
@@ -353,39 +370,10 @@ public class ClipCaptureActivity extends ChapterActivity implements
 	public void onSurfaceTextureUpdated(SurfaceTexture arg0) {
         if(!firstSurfaceUpdate){
             firstSurfaceUpdate = true;
-            startClipTimer(500);
+            startClipTimer(CLIP_DURATION+500,TIMER_UPDATE_INTERVAL);
         }
 
     }
 
-    private TimerTask activeTask = null;
-    private void startClipTimer(final long fudge){
-        if(activeTask != null){
-            System.err.println("[startClipTimer] overwriting uncleaned-up activetask before proceeding. finishClipTimer not called yet, will call now");
-            finishClipTimer();
-        }
-        mDeterminate.setPosition(0.f);
-        mDeterminate.show();
-        activeTask = new TimerTask() {
-            private long totalMS = 0;
-            private long fudgeDuration = CLIP_DURATION + fudge;
-            @Override
-            public void run() {
-                long newMS = totalMS + TIMER_UPDATE_INTERVAL;
-                totalMS = Math.min(newMS,fudgeDuration);
-                mDeterminate.setPosition((float) totalMS / fudgeDuration);
-            }
-        };
-        mTimer.scheduleAtFixedRate(activeTask,0,TIMER_UPDATE_INTERVAL);
-    }
 
-    private void finishClipTimer(){
-        if(activeTask != null) {
-            activeTask.cancel();
-            mTimer.purge();
-            activeTask = null;
-            mDeterminate.setPosition(1.f);
-            mDeterminate.hide();
-        }
-    }
 }
