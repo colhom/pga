@@ -15,8 +15,8 @@ import android.view.TextureView;
 import android.view.TextureView.SurfaceTextureListener;
 import android.view.WindowManager;
 
-import com.repco.perfect.glassapp.base.ChapterActivity;
-import com.repco.perfect.glassapp.base.TuggableView;
+import com.google.android.glass.widget.Slider;
+import com.repco.perfect.glassapp.base.ChapterImmersionActivity;
 import com.repco.perfect.glassapp.storage.Clip;
 import com.repco.perfect.glassapp.storage.StorageHandler;
 
@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class ClipPreviewActivity extends ChapterActivity implements
+public class ClipPreviewActivity extends ChapterImmersionActivity implements
 		SurfaceTextureListener {
 
 	private static final String LTAG = ClipPreviewActivity.class
@@ -32,15 +32,18 @@ public class ClipPreviewActivity extends ChapterActivity implements
 	TextureView mTextureView;
 	MediaPlayer mPlayer;
 
-	@Override
+    @Override
+    public int getLayoutId() {
+        return R.layout.video_immersion;
+    }
+
+    @Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		mTextureView = new TextureView(this);
+		mTextureView = (TextureView) findViewById(R.id.video_texture_view);
 		mTextureView.setSurfaceTextureListener(this);
 		mPlayer = new MediaPlayer();
-		setContentView(new TuggableView(this,mTextureView));
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
 	}
 
 	@Override
@@ -63,9 +66,7 @@ public class ClipPreviewActivity extends ChapterActivity implements
         Log.d(LTAG, mChapter.toString());
         final Queue<Clip> clips = new LinkedBlockingQueue<Clip>(mChapter.clips);
 
-        for (Clip clip : clips) {
-            Log.d(LTAG, clip.toString());
-        }
+
         MediaPlayer.OnCompletionListener trigger = new OnCompletionListener() {
             @Override
             public void onCompletion(MediaPlayer mp) {
@@ -76,7 +77,8 @@ public class ClipPreviewActivity extends ChapterActivity implements
                 if (clip == null) {
                     // no clips left;
                     surface.release();
-                    openOptionsMenu();
+                    finishClipTimer();
+                    showStatusViews("Tap for Options",R.drawable.ic_video_50);
                     return;
                 }
 
@@ -94,11 +96,15 @@ public class ClipPreviewActivity extends ChapterActivity implements
                 mp.start();
             }
         };
+        //Very approximate... doesn't need to be exact
+        chapterDuration = clips.size()*(4500);
+        firstSurfaceUpdate = false;
+        //We'll start the timer when the the surface gets its first update
+        mDeterminate = mSlider.startDeterminate(1,0.f);
 
         trigger.onCompletion(mPlayer);
-
 	}
-
+    private long chapterDuration;
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		getMenuInflater().inflate(R.menu.preview, menu);
@@ -119,10 +125,23 @@ public class ClipPreviewActivity extends ChapterActivity implements
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.publish_chapter_item:
-            Intent intent = new Intent();
-            intent.setAction(ClipService.Action.CS_PUBLISH_CHAPTER.toString());
-            LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
-			finish();
+            showStatusViews("Uploading Chapter...",R.drawable.ic_video_50);
+            mGraceSlider = mSlider.startGracePeriod(new Slider.GracePeriod.Listener() {
+                @Override
+                public void onGracePeriodEnd() {
+                    showStatusViews("Chapter Uploaded!",R.drawable.ic_done_50);
+                    Intent intent = new Intent();
+                    intent.setAction(ClipService.Action.CS_PUBLISH_CHAPTER.toString());
+                    LocalBroadcastManager.getInstance(ClipPreviewActivity.this).sendBroadcast(intent);
+                    finish();
+                }
+
+                @Override
+                public void onGracePeriodCancel() {
+
+                }
+            });
+
 			break;
 		case R.id.exit_preview_item:
 			finish();
@@ -154,11 +173,13 @@ public class ClipPreviewActivity extends ChapterActivity implements
 		// TODO Auto-generated method stub
 
 	}
-
+    private boolean firstSurfaceUpdate;
 	@Override
 	public void onSurfaceTextureUpdated(SurfaceTexture arg0) {
-		// TODO Auto-generated method stub
-
+        if(!firstSurfaceUpdate){
+            firstSurfaceUpdate = true;
+            startClipTimer(chapterDuration,250);
+        }
 	}
 
 }

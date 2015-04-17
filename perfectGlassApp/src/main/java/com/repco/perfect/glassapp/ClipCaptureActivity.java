@@ -7,8 +7,6 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Point;
 import android.graphics.SurfaceTexture;
-import android.graphics.drawable.Drawable;
-import android.media.AudioManager;
 import android.media.CamcorderProfile;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
@@ -26,16 +24,11 @@ import android.view.MenuItem;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.TextureView.SurfaceTextureListener;
-import android.view.View;
 import android.view.WindowManager;
-import android.widget.ImageView;
-import android.widget.TextView;
 
 import com.google.android.glass.media.Sounds;
 import com.google.android.glass.widget.Slider;
-import com.repco.perfect.glassapp.base.ChapterActivity;
 import com.repco.perfect.glassapp.base.ChapterImmersionActivity;
-import com.repco.perfect.glassapp.base.TuggableView;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -43,8 +36,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.security.SecureRandom;
-import java.util.Timer;
-import java.util.TimerTask;
 
 public class ClipCaptureActivity extends ChapterImmersionActivity implements
 		MediaRecorder.OnInfoListener, MediaRecorder.OnErrorListener,
@@ -57,7 +48,7 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
 
     @Override
     public int getLayoutId() {
-        return R.layout.clip_capture;
+        return R.layout.video_immersion;
     }
 
     @Override
@@ -66,7 +57,7 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
 		super.onCreate(savedInstanceState);
 
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        mTextureView = (TextureView) findViewById(R.id.video_view);
+        mTextureView = (TextureView) findViewById(R.id.video_texture_view);
         mTextureView.setSurfaceTextureListener(this);
         doneRecording = false;
 	}
@@ -87,7 +78,7 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
 
             am.playSoundEffect(Sounds.SUCCESS);
 
-            showStatusViews("",R.drawable.ic_video_50);
+            showStatusViews("Tap for Options",R.drawable.ic_video_50);
 
             finishClipTimer();
 
@@ -122,10 +113,10 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
 
 	@Override
 	protected void onStop() {
+        super.onStop();
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         destroy();
         closeOptionsMenu();
-		super.onStop();
 	}
 	private void resetRecorder() {
 		mRec.stop();
@@ -224,7 +215,7 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
                     finishClipTimer();
 					mp.setSurface(null);
 					mp.release();
-					showStatusViews("",R.drawable.ic_video_50);
+					showStatusViews("Tap for Options",R.drawable.ic_video_50);
 				}
 			});
 			mp.prepareAsync();
@@ -258,8 +249,6 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
 
 
 	private synchronized void destroy(){
-        finishGraceTimer();
-        finishClipTimer();
 
 		if(mRec != null){
 			Log.d(getClass().getSimpleName(),"->destroying media recorder");
@@ -334,10 +323,9 @@ public class ClipCaptureActivity extends ChapterImmersionActivity implements
 			finish();
 		}
 
+		mRec.start();
         mDeterminate = mSlider.startDeterminate(1, 0.f);
         firstSurfaceUpdate = false;
-		mRec.start();
-		
 	}
 
     private boolean firstSurfaceUpdate;
