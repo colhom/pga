@@ -10,6 +10,7 @@ import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.View;
 import android.view.WindowManager;
 
 import com.google.android.glass.media.Sounds;
@@ -25,8 +26,8 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
 
 
     @Override
-    public int getLayoutId() {
-        return R.layout.clip_capture;
+    public View getContentView() {
+        return getLayoutInflater().inflate(R.layout.clip_capture,null);
     }
 
     private boolean clipSaved = false;
@@ -156,7 +157,7 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
                     replayClip();
                     break;
                 case R.id.delete_clip_voice_mi:
-                    finish();
+                    deleteClip();
                     break;
                 default:
                     return true;
@@ -171,6 +172,7 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
         mGraceSlider = mSlider.startGracePeriod(new Slider.GracePeriod.Listener() {
             @Override
             public void onGracePeriodEnd() {
+                mGraceSlider = null;
                 showStatusViews("Clip Added!",R.drawable.ic_done_50);
                 clipSaved = true;
                 finish();
@@ -178,9 +180,10 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
 
             @Override
             public void onGracePeriodCancel() {
+                mGraceSlider = null;
                 System.out.println("[saveClip] grace period cancelled");
+                showStatusViews("",R.drawable.ic_video_50);
                 clipSaved = false; // just to be "safe".
-                finish();
             }
         });
     }
@@ -198,6 +201,26 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
         startActivityForResult(replayClip, PREVIEW_REQUEST_CODE);
     }
 
+    private void deleteClip(){
+        showStatusViews("Deleting clip...",R.drawable.ic_delete_50);
+        mGraceSlider = mSlider.startGracePeriod(new Slider.GracePeriod.Listener() {
+
+            @Override
+            public void onGracePeriodEnd() {
+                mGraceSlider = null;
+                showStatusViews("Clip Deleted!",R.drawable.ic_done_50);
+                finish();
+            }
+
+            @Override
+            public void onGracePeriodCancel() {
+                showStatusViews("",R.drawable.ic_video_50);
+                mGraceSlider = null;
+            }
+        });
+
+    }
+
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
@@ -210,6 +233,9 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
 		case R.id.retake_clip_mi:
             captureClip();
 			break;
+        case R.id.delete_clip_mi:
+            deleteClip();
+            break;
 		default:
 			return false;
 		}
@@ -220,14 +246,6 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
 
     private static final String LTAG = ClipCaptureActivity.class.getSimpleName();
 
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if(keyCode == KeyEvent.KEYCODE_DPAD_CENTER){
-            openOptionsMenu();
-            return true;
-        }
-        return super.onKeyDown(keyCode, event);
-    }
 
 
 

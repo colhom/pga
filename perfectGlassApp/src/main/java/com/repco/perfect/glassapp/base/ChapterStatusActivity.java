@@ -4,11 +4,13 @@ import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.media.AudioManager;
 import android.os.Bundle;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.google.android.glass.media.Sounds;
 import com.google.android.glass.view.WindowUtils;
 import com.google.android.glass.widget.Slider;
 import com.repco.perfect.glassapp.R;
@@ -35,7 +37,7 @@ public abstract class ChapterStatusActivity extends ChapterActivity{
         getWindow().requestFeature(WindowUtils.FEATURE_VOICE_COMMANDS);
 
         am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        View cv = getLayoutInflater().inflate(getLayoutId(),null);
+        View cv = getContentView();
         mStatusImageView = (ImageView) cv.findViewById(R.id.status_icon);
         mStatusTextView = (TextView) cv.findViewById(R.id.status_text);
         mBackgroundImageView = (ImageView) cv.findViewById(R.id.background_image_view);
@@ -50,9 +52,21 @@ public abstract class ChapterStatusActivity extends ChapterActivity{
         mLoading = mSlider.startIndeterminate();
     }
 
-    public abstract int getLayoutId();
+    public abstract View getContentView();
     public int getVoiceMenuId(){ return 0;};
-
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if(keyCode == KeyEvent.KEYCODE_DPAD_CENTER){
+            if(mMenuEnabled) {
+                am.playSoundEffect(Sounds.SELECTED);
+                openOptionsMenu();
+            }else{
+                am.playSoundEffect(Sounds.DISALLOWED);
+            }
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
     @Override
     public boolean onPreparePanel(int featureId, View view, Menu menu) {
         if(featureId == WindowUtils.FEATURE_VOICE_COMMANDS){
@@ -84,20 +98,28 @@ public abstract class ChapterStatusActivity extends ChapterActivity{
         super.onDestroy();
         finishGraceTimer();
     }
-
+    @Override
+    public void onBackPressed() {
+        if(mGraceSlider == null) {
+            super.onBackPressed();
+        }else{
+            am.playSoundEffect(Sounds.DISMISSED);
+            mGraceSlider.cancel();
+        }
+    }
     protected void finishGraceTimer(){
         if(mGraceSlider != null){
             mGraceSlider.cancel();
         }
     }
-
-    protected void showStatusViews(String text, int iconID){
-        mStatusTextView.setText(text);
+    //If actionText is empty string, voice menu is enabled. kinda funky
+    protected void showStatusViews(String actionText, int iconID){
+        mMenuEnabled = actionText.isEmpty();
+        mStatusTextView.setText(actionText);
         Drawable src = getResources().getDrawable(iconID);
         mStatusImageView.setImageDrawable(src);
         mStatusImageView.setVisibility(View.VISIBLE);
         mStatusTextView.setVisibility(View.VISIBLE);
-        mMenuEnabled = true;
     }
 
     protected void hideStatusView(){

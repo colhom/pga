@@ -1,35 +1,48 @@
 package com.repco.perfect.glassapp;
 
+import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 
-import com.repco.perfect.glassapp.base.ChapterActivity;
+import com.google.android.glass.widget.Slider;
+import com.repco.perfect.glassapp.base.ChapterStatusActivity;
 import com.repco.perfect.glassapp.storage.Chapter;
+import com.repco.perfect.glassapp.storage.Clip;
 
-public class LaunchMenuActivity extends ChapterActivity {
+import java.util.Timer;
+import java.util.TimerTask;
+
+public class LaunchMenuActivity extends Activity {
     private final String LTAG=this.getClass().getSimpleName();
 
     private Chapter mChapter;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mChapter = (Chapter) getIntent().getSerializableExtra("chapter");
+
+
+    }
+
+    @Override
+    public void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        openOptionsMenu();
     }
 
     @Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		getMenuInflater().inflate(R.menu.launcher, menu);
 		return true;
-	}
-	@Override
-	public void onOptionsMenuClosed(Menu menu) {
-		// TODO Auto-generated method stub
-		super.onOptionsMenuClosed(menu);
-		finish();
 	}
 
     @Override
@@ -56,10 +69,16 @@ public class LaunchMenuActivity extends ChapterActivity {
                 action = ClipService.Action.CS_PREVIEW_CHAPTER;
                 break;
             case R.id.write_chapter_item:
-                action = ClipService.Action.CS_PUBLISH_CHAPTER;
-                break;
+                Intent uploadChapter = new Intent(this,ChapterUploadActivity.class);
+                Bundle b = new Bundle();
+                b.putSerializable("chapter",mChapter);
+                uploadChapter.putExtras(b);
+                startActivity(uploadChapter);
+                return true;
+
             case R.id.stop_service_item:
                 action= ClipService.Action.CS_STOP_SERVICE;
+                finish();
                 break;
             default:
                 action = null;
@@ -77,12 +96,11 @@ public class LaunchMenuActivity extends ChapterActivity {
 	
 	}
 
-	@Override
-	public void onAttachedToWindow() {
-		super.onAttachedToWindow();
-        Log.i(LTAG, "onAttachedToWindow "+mChapter.clips.size());
-		openOptionsMenu();
-	}
 
+    @Override
+    public void onOptionsMenuClosed(Menu menu) {
+        super.onOptionsMenuClosed(menu);
+        finish();
+    }
 }
   

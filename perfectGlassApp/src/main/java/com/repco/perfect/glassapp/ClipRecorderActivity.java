@@ -48,7 +48,7 @@ public class ClipRecorderActivity extends ChapterSurfaceActivity implements Medi
         super.onCreate(savedInstanceState);
         mResultCode = RESULT_CANCELED;
         mResultData = new Intent();
-
+        setResult(mResultCode,mResultData);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         mTextureView.setSurfaceTextureListener(this);
@@ -119,7 +119,7 @@ public class ClipRecorderActivity extends ChapterSurfaceActivity implements Medi
             case MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED:
 
                 finishClipTimer();
-
+                mLoading.show();
                 detachRecorder();
 
                 mPreview = ThumbnailUtils.createVideoThumbnail(
@@ -199,9 +199,17 @@ public class ClipRecorderActivity extends ChapterSurfaceActivity implements Medi
             } catch (IllegalStateException e) {
                 Log.d(getClass().getSimpleName(), "media recorder already stopped");
             }
+            mRec.reset();
             mRec.release();
             mRec = null;
         }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        detachRecorder();
+        finish();
     }
 
     @Override
@@ -209,7 +217,6 @@ public class ClipRecorderActivity extends ChapterSurfaceActivity implements Medi
         super.onDestroy();
 
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        detachRecorder();
 
     }
 

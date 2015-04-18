@@ -43,12 +43,18 @@ public class ClipPreviewActivity extends ChapterSurfaceActivity {
         mTextureView.setSurfaceTextureListener(this);
 	}
 
-	@Override
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mPlayer != null) {
+            mPlayer.release();
+        }
+        finish();
+    }
+
+    @Override
 	protected void onDestroy() {
 		super.onDestroy();
-		if (mPlayer != null) {
-			mPlayer.release();
-		}
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 	}
 
@@ -74,6 +80,7 @@ public class ClipPreviewActivity extends ChapterSurfaceActivity {
                     // no clips left;
                     surface.release();
                     finishClipTimer();
+                    finish();
                     return;
                 }
 

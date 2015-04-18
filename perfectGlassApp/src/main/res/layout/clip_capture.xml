@@ -9,7 +9,7 @@
         android:id="@+id/status_overlay"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
+        android:layout_gravity="center"
         android:layout_marginLeft="@dimen/glass_card_margin"
         android:layout_marginBottom="@dimen/glass_card_footer_margin"
         android:layout_marginRight="@dimen/glass_card_margin"
