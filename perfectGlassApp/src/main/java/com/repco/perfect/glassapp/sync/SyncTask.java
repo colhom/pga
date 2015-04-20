@@ -1,16 +1,11 @@
 package com.repco.perfect.glassapp.sync;
 
-import android.accounts.Account;
-import android.content.AbstractThreadedSyncAdapter;
 import android.content.ComponentName;
-import android.content.ContentProviderClient;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.content.SyncResult;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -24,16 +19,24 @@ import com.repco.perfect.glassapp.base.Storable;
 import com.repco.perfect.glassapp.storage.StorageHandler;
 import com.repco.perfect.glassapp.storage.StorageService;
 
+import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 
-public class SyncAdapter extends AbstractThreadedSyncAdapter {
+public class SyncTask{
 
-	private static final String LTAG = SyncAdapter.class.getSimpleName();
+	private static final String LTAG = SyncTask.class.getSimpleName();
 
-	public SyncAdapter(Context context, boolean autoInitialize) {
-		super(context, autoInitialize);
-	}
+
+    private final Context context;
+    public SyncTask(Context context){
+        this.context = context;
+    }
+
+    protected final Context getContext(){
+        return this.context;
+    }
+
 
 	private Messenger mStorageMessenger;
 	private final ServiceConnection mStorageConnection = new ServiceConnection() {
@@ -111,40 +114,48 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
         }
     }
     private Messenger mStorageReplyMessenger;
-	@Override
-	public void onPerformSync(Account account, Bundle extras, String authority,
-			ContentProviderClient provider, SyncResult result) {
 
-		Log.i(LTAG, "Sync started");
-
-		ConnectivityManager connManager = (ConnectivityManager) getContext()
-				.getSystemService(Context.CONNECTIVITY_SERVICE);
-
-		NetworkInfo mWifi = connManager.getActiveNetworkInfo();
-
-		if (mWifi == null) {
-			Log.i(LTAG, "No active network connection, skipping sync");
-			return;
-		}
-
-		if (connManager.isActiveNetworkMetered()) {
-			Log.i("LTAG",
-					"Active network connection is metered, skipping sync");
-			return;
-		}
+    public static final int
+            SYNC_SUCCESS = 0,
+            SYNC_NO_NETWORK = 1,
+            SYNC_ONLY_METERED=2,
+            SYNC_ERROR =3,
+            SYNC_IN_PROGRESS=4,
+            SYNC_INITIALIZING=5
+    ;
 
 
+    private int doSync(){
+        Log.i(LTAG, "Sync started");
 
-		// TODO: this is gross, architect your software properly plz
-		final Semaphore syncBarrier = new Semaphore(1);
-		final Boolean done = false;
-		final Handler.Callback mReplyCallback = new Handler.Callback() {
+        ConnectivityManager connManager = (ConnectivityManager) getContext()
+                .getSystemService(Context.CONNECTIVITY_SERVICE);
 
-			@Override
-			public boolean handleMessage(Message msg) {
-				boolean delivered = false;
+        NetworkInfo mWifi = connManager.getActiveNetworkInfo();
 
-				switch (msg.what) {
+        if (mWifi == null) {
+            Log.i(LTAG, "No active network connection, skipping sync");
+            return SYNC_NO_NETWORK;
+        }
+
+        if (connManager.isActiveNetworkMetered()) {
+            Log.i("LTAG",
+                    "Active network connection is metered, skipping sync");
+            return SYNC_ONLY_METERED;
+        }
+
+
+
+        // TODO: this is gross, architect your software properly plz
+        final Semaphore syncBarrier = new Semaphore(1);
+        final Boolean done = false;
+        final Handler.Callback mReplyCallback = new Handler.Callback() {
+
+            @Override
+            public boolean handleMessage(Message msg) {
+                boolean delivered = false;
+
+                switch (msg.what) {
                     case StorageHandler.RECEIVE_NEXT_STORABLE:
                         Log.i(LTAG,"RECEIVE NEXT STORABLE "+msg.obj);
                         if (msg.obj == null) {
@@ -160,16 +171,16 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                                 continueSync();
                             }
                         }
-					delivered = true;
-					break;
-				default:
-					Log.e(LTAG, "unknown message type " + msg.what);
-					break;
+                        delivered = true;
+                        break;
+                    default:
+                        Log.e(LTAG, "unknown message type " + msg.what);
+                        break;
 
-				}
-				return delivered;
-			}
-		};
+                }
+                return delivered;
+            }
+        };
 
         HandlerThread ht = new HandlerThread("StorageReplyHandler");
         ht.start();
@@ -178,29 +189,78 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
         mStorageReplyMessenger = new Messenger(
                 storageReplyHandler);
 
-		serviceBarrier = new CountDownLatch(1);
-		if (!getContext().bindService(
-				new Intent(getContext(), StorageService.class),
-				mStorageConnection, Context.BIND_AUTO_CREATE)) {
-			throw new RuntimeException("Could not bind to storage service");
-		}
+        serviceBarrier = new CountDownLatch(1);
+        if (!getContext().bindService(
+                new Intent(getContext(), StorageService.class),
+                mStorageConnection, Context.BIND_AUTO_CREATE)) {
+            throw new RuntimeException("Could not bind to storage service");
+        }
 
-		try {
-			serviceBarrier.await();
-		} catch (InterruptedException e1) {
-			throw new RuntimeException(e1);
-		}
+        try {
+            serviceBarrier.await();
+        } catch (InterruptedException e1) {
+            throw new RuntimeException(e1);
+        }
 
         continueSync();
-        Log.i(LTAG,"onPerformSync() synced started, awaiting doneBarrier");
+        Log.i(LTAG,"synced started, awaiting doneBarrier");
 
         try{
             doneBarrier.await();
         }catch(InterruptedException e){
             throw new RuntimeException(e);
         }
-        Log.i(LTAG,"onPerformSync() returning");
-	}
 
 
+        return SYNC_SUCCESS;
+    }
+
+    private boolean isSyncing = false;
+
+    private synchronized boolean shouldSync(){
+        if(!isSyncing){
+            isSyncing = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    private int mSyncStatus = SYNC_INITIALIZING;
+
+
+    private Thread mThread;
+
+    public void requestSync() {
+        if (!shouldSync()) {
+            Log.i(LTAG, "should not sync");
+            return;
+        }
+        mThread = new Thread(new Runnable() {
+
+            public void run() {
+
+
+                mSyncStatus = SYNC_IN_PROGRESS;
+                try
+
+                {
+                    mSyncStatus = doSync();
+                } catch (Exception e)
+
+                {
+                    Log.e(LTAG, "Error in sync block");
+                    e.printStackTrace();
+                    mSyncStatus = SYNC_ERROR;
+                } finally
+
+                {
+                    isSyncing = false;
+                }
+            }
+        });
+
+        mThread.start();
+
+    }
 }

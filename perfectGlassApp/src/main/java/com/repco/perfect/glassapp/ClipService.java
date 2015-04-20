@@ -12,6 +12,8 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.media.AudioManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -35,6 +37,7 @@ import com.repco.perfect.glassapp.storage.Chapter;
 import com.repco.perfect.glassapp.storage.Clip;
 import com.repco.perfect.glassapp.storage.StorageHandler;
 import com.repco.perfect.glassapp.storage.StorageService;
+import com.repco.perfect.glassapp.sync.SyncTask;
 
 import java.util.Date;
 import java.util.concurrent.CountDownLatch;
@@ -50,9 +53,6 @@ public class ClipService extends Service {
 	private Handler mStorageReplyHandler;
     private Handler mDashHandler = new Handler();
 
-	public static  String AUTHORITY,ACCOUNT_TYPE;
-	public static final String ACCOUNT_NAME = "dummy_perfect_account";
-	public static Account ACCOUNT;
 
 	private final ServiceConnection mStorageConnection = new ServiceConnection() {
 
@@ -73,40 +73,35 @@ public class ClipService extends Service {
     private CountDownLatch storageLatch;
 
     private boolean clipTaken;
+
+    private SyncTask mSyncTask;
+
+    private final BroadcastReceiver mNetworkReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Log.i("[Sync]","received network state change");
+
+            NetworkInfo netInfo = mConnManager.getActiveNetworkInfo();
+            //should check null because in air plan mode it will be null
+            if (netInfo != null && netInfo.isConnected()){
+                mSyncTask.requestSync();
+            }else{
+                Log.i("[Sync]","network not connected");
+            }
+
+        }
+    };
+
+    ConnectivityManager mConnManager;
 	@Override
 	public void onCreate() {
 		super.onCreate();
-		AUTHORITY = getResources().getString(R.string.provider_type);
-		ACCOUNT_TYPE = getResources().getString(R.string.account_type);
+
+        mConnManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        mSyncTask = new SyncTask(this);
 
         clipTaken = false;
 
-		AccountManager accountManager = (AccountManager) getSystemService(ACCOUNT_SERVICE);
-
-		Account[] accounts = accountManager.getAccountsByType(ACCOUNT_TYPE);
-
-		if(accounts.length == 0){
-			Log.i(LTAG,"creating new account");
-			ACCOUNT = new Account(ACCOUNT_NAME,ACCOUNT_TYPE);
-			ContentResolver.setIsSyncable(ACCOUNT, AUTHORITY, 1);
-			ContentResolver.setSyncAutomatically(ACCOUNT, AUTHORITY, true);
-			if (!accountManager.addAccountExplicitly(ACCOUNT, null, null)) {
-
-				Log.e(LTAG,"Add account failed!");
-			}
-		}else if(accounts.length == 1){
-			Log.i(LTAG,"Using existing account");
-			ACCOUNT = accounts[0];
-
-		}else{
-
-			throw new RuntimeException("We have too many ("+accounts.length+") accounts!");
-		}
-		ContentResolver.setIsSyncable(ACCOUNT, AUTHORITY, 1);
-		ContentResolver.setSyncAutomatically(ACCOUNT, AUTHORITY, true);
-
-
-		ContentResolver.addPeriodicSync(ACCOUNT, AUTHORITY, new Bundle(), 60*5);
 
         storageLatch = new CountDownLatch(1);
         mStorageIntent = new Intent(this, StorageService.class);
@@ -145,8 +140,20 @@ public class ClipService extends Service {
             mDashHandler.postDelayed(this,UPDATE_DASH_DELAY);
         }
     };
+    private static final long PERIODIC_SYNC_PERIOD = 10 * DateUtils.MINUTE_IN_MILLIS;
+    private Runnable mPeriodicSyncRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if(isStopped){
+                return;
+            }
+            Log.i(LTAG,"periodic sync poke");
+            mSyncTask.requestSync();
+            mDashHandler.postDelayed(mPeriodicSyncRunnable,PERIODIC_SYNC_PERIOD);
+        }
+    };
 
-    public static final int CBID_CHAPTER_PREVIEW=1,CBID_LAUNCH_OPTIONS_MENU=2,CBID_INITIALIZE_LIVECARD=3;
+    public static final int CBID_CHAPTER_PREVIEW=1,CBID_INITIALIZE_LIVECARD=3;
 
     private Intent mStorageIntent;
 	private final Handler.Callback mReplyCallback = new Handler.Callback() {
@@ -176,12 +183,11 @@ public class ClipService extends Service {
                                 startActivity(previewIntent);
                             }
                             break;
-                        case CBID_LAUNCH_OPTIONS_MENU:
-
-                            break;
-
                         case CBID_INITIALIZE_LIVECARD:
                             if (mLiveCard == null) {
+                                mSyncTask.requestSync();
+                                IntentFilter connIntent = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
+                                registerReceiver(mNetworkReceiver, connIntent);
                                 mLiveCard = new LiveCard(ClipService.this, "pga_dash");
                                 mLiveCard.attach(ClipService.this);
                                 mLiveCard.setDirectRenderingEnabled(false);
@@ -191,7 +197,7 @@ public class ClipService extends Service {
                             }
                             break;
                         default:
-
+                            mSyncTask.requestSync();
                             break;
                     }
                     Intent menuIntent = new Intent(ClipService.this, LaunchMenuActivity.class);
@@ -255,6 +261,7 @@ public class ClipService extends Service {
                         //so that the relative timestamp stays up to date on the
                         //live card
                         mDashHandler.post(mDashUpdateRunnable);
+                        mDashHandler.postDelayed(mPeriodicSyncRunnable,PERIODIC_SYNC_PERIOD);
                         clipTaken = true;
                     }
                     Clip clip = (Clip) intent.getSerializableExtra("clip");
@@ -319,6 +326,8 @@ public class ClipService extends Service {
     }
 
     private Chapter mCachedActive;
+
+
 	private void updateDash() {
         if(mCachedActive == null){
             return;
@@ -348,6 +357,7 @@ public class ClipService extends Service {
                 card.addImage(bitmap);
 
             }
+
             dashView = card.getRemoteViews();
         }
 		mLiveCard.setViews(dashView);
@@ -390,6 +400,7 @@ public class ClipService extends Service {
 
 	@Override
 	public void onDestroy() {
+        unregisterReceiver(mNetworkReceiver);
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mReceiver);
         isStopped = true;
 		if (mLiveCard != null && mLiveCard.isPublished()) {

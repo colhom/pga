@@ -80,7 +80,6 @@ public class StorageHandler extends SQLiteOpenHelper {
 					upsertRow(active);
 					delivered = true;
 					mDb.setTransactionSuccessful();
-					requestSync();
 					Log.i(LTAG, "PUSH_CLIP transcaction completed");
 
 					break;
@@ -98,7 +97,6 @@ public class StorageHandler extends SQLiteOpenHelper {
 						upsertRow(active);
 						upsertRow(new Chapter());
 						delivered = true;
-						requestSync();
                         reply.obj = active;
 					}
 					break;
@@ -155,13 +153,6 @@ public class StorageHandler extends SQLiteOpenHelper {
 		}
 	};
 
-	private void requestSync() {
-		Bundle extras = new Bundle();
-		extras.putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true);
-
-		ContentResolver.requestSync(ClipService.ACCOUNT, ClipService.AUTHORITY,
-				extras);
-	}
 
 	public static final String TABLE_NAME = "storables";
 	public static final String JSON_DATA_KEY = "data", TS_DATA_KEY = "ts",
