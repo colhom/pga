@@ -263,4 +263,8 @@ public class SyncTask{
         mThread.start();
 
     }
+
+    public int getSyncStatus(){
+        return mSyncStatus;
+    }
 }

@@ -59,6 +59,12 @@
             android:immersive="true"
             android:label="@string/app_name" >
         </activity>
+        <activity
+            android:name=".SyncExitActivity"
+            android:enabled="true"
+            android:immersive="true"
+            android:label="@string/app_name" >
+        </activity>
         <!--
         <activity
             android:name="com.repco.perfect.glassapp.ChapterPublishActivity"
