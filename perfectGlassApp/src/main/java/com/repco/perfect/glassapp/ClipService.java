@@ -2,6 +2,8 @@ package com.repco.perfect.glassapp;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
+import android.accounts.AccountManagerCallback;
+import android.accounts.AccountManagerFuture;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
@@ -93,10 +95,34 @@ public class ClipService extends Service {
     };
 
     ConnectivityManager mConnManager;
+    public static final String AUTH_TOKEN_TYPE =  "oauth2:https://www.chapterapp.io/auth/login";
+    public static final String ACCOUNT_TYPE = "com.repco.perfect.glassapp.account";
 	@Override
 	public void onCreate() {
 		super.onCreate();
 
+        AccountManager accountManager = AccountManager.get(this);
+        Account[] accounts = accountManager.getAccountsByType(ACCOUNT_TYPE);
+        for(Account account : accountManager.getAccounts()){
+            Log.i(LTAG,account.name+" : "+account.type);
+        }
+        Log.i(LTAG,"Found "+accounts.length+" accounts");
+
+        for(final Account account : accounts){
+
+            accountManager.getAuthToken(account, AUTH_TOKEN_TYPE, null, false, new AccountManagerCallback<Bundle>() {
+                public void run(AccountManagerFuture<Bundle> future) {
+                    try {
+                        String token = future.getResult().getString(AccountManager.KEY_AUTHTOKEN);
+                        Log.i(LTAG,"Found token "+account.name+" : "+token);
+                        // Use the token.
+                    } catch (Exception e) {
+                        Log.e(LTAG,e.getMessage());
+                        e.printStackTrace();
+                    }
+                }
+            }, null);
+        }
         mConnManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         mSyncTask = new SyncTask(this);
 
@@ -400,7 +426,11 @@ public class ClipService extends Service {
 
 	@Override
 	public void onDestroy() {
-        unregisterReceiver(mNetworkReceiver);
+        try {
+            unregisterReceiver(mNetworkReceiver);
+        }catch(IllegalArgumentException e){
+            e.printStackTrace();
+        }
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mReceiver);
         isStopped = true;
 		if (mLiveCard != null && mLiveCard.isPublished()) {
