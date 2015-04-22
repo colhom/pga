@@ -76,11 +76,11 @@ public abstract class Storable implements Serializable{
 			.setEndpoint(DevData.API_HOST).build();
 	
 
-	public final boolean doSync(){
+	public final boolean doSync(String token){
 		Response res;
 		try{
 			
-			res = makeSyncRequest();
+			res = makeSyncRequest(token);
 		}catch(RetrofitError e){
 			e.printStackTrace();
 			return false;
@@ -93,8 +93,8 @@ public abstract class Storable implements Serializable{
 		Log.w(LTAG, "Retrofit: "+res.getStatus()+" : "+res.getReason());
 		return false;
 	}
-	
-	protected abstract Response makeSyncRequest() throws RetrofitError;
+
+	protected abstract Response makeSyncRequest(String token) throws RetrofitError;
 	protected abstract boolean doCleanup();
 	@Override
     public String toString() { return uuid+" ("+objecttype+") "+ts;};

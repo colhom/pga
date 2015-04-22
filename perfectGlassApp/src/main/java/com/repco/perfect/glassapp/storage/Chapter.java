@@ -30,9 +30,9 @@ public final class Chapter extends Storable {
 	}
 
 	@Override
-	protected Response makeSyncRequest() throws RetrofitError {
+	protected Response makeSyncRequest(String token) throws RetrofitError {
 
-		return chapterService.postSyncData(new TypedString(getJSONData()), new TypedString(DevData.GOOGLE_ID));
+		return chapterService.postSyncData(new TypedString(getJSONData()), new TypedString(token));
 	}
 
     @Override
@@ -56,8 +56,9 @@ public final class Chapter extends Storable {
 	private interface ChapterService {
 		@Multipart
 		@PUT("/api/storable")
-		Response postSyncData(@Part("json_data") TypedString jsonData,
-				@Part("dummy_gid") TypedString dummyGid);
+		Response postSyncData(
+                @Part("json_data") TypedString jsonData,
+				@Part("token") TypedString token);
 	}
 	
 }

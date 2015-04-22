@@ -95,34 +95,16 @@ public class ClipService extends Service {
     };
 
     ConnectivityManager mConnManager;
-    public static final String AUTH_TOKEN_TYPE =  "oauth2:https://www.chapterapp.io/auth/login";
-    public static final String ACCOUNT_TYPE = "com.repco.perfect.glassapp.account";
+
+    private Account mAccount;
 	@Override
 	public void onCreate() {
 		super.onCreate();
 
-        AccountManager accountManager = AccountManager.get(this);
-        Account[] accounts = accountManager.getAccountsByType(ACCOUNT_TYPE);
-        for(Account account : accountManager.getAccounts()){
-            Log.i(LTAG,account.name+" : "+account.type);
-        }
-        Log.i(LTAG,"Found "+accounts.length+" accounts");
+        mAudio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 
-        for(final Account account : accounts){
 
-            accountManager.getAuthToken(account, AUTH_TOKEN_TYPE, null, false, new AccountManagerCallback<Bundle>() {
-                public void run(AccountManagerFuture<Bundle> future) {
-                    try {
-                        String token = future.getResult().getString(AccountManager.KEY_AUTHTOKEN);
-                        Log.i(LTAG,"Found token "+account.name+" : "+token);
-                        // Use the token.
-                    } catch (Exception e) {
-                        Log.e(LTAG,e.getMessage());
-                        e.printStackTrace();
-                    }
-                }
-            }, null);
-        }
+
         mConnManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         mSyncTask = new SyncTask(this);
 
@@ -141,7 +123,7 @@ public class ClipService extends Service {
 		ht.start();
 		mStorageReplyHandler = new Handler(ht.getLooper(), mReplyCallback);
 		mStorageReplyMessenger = new Messenger(mStorageReplyHandler);
-		mAudio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+
 
         //set up broadcast receiver for activites
         IntentFilter filter = new IntentFilter();

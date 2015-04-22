@@ -1,11 +1,17 @@
 package com.repco.perfect.glassapp.sync;
 
+import android.accounts.Account;
+import android.accounts.AccountManager;
+import android.accounts.AccountManagerCallback;
+import android.accounts.AccountManagerFuture;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -14,6 +20,7 @@ import android.os.Messenger;
 import android.os.RemoteException;
 import android.util.Log;
 
+import com.google.android.glass.media.Sounds;
 import com.repco.perfect.glassapp.BuildConfig;
 import com.repco.perfect.glassapp.base.Storable;
 import com.repco.perfect.glassapp.storage.StorageHandler;
@@ -27,10 +34,29 @@ public class SyncTask{
 
 	private static final String LTAG = SyncTask.class.getSimpleName();
 
+    public static final String AUTH_TOKEN_TYPE =  "oauth2:https://www.chapterapp.io/auth/login";
+    public static final String ACCOUNT_TYPE = "com.repco.perfect.glassapp.account";
 
     private final Context context;
+    private final Account mAccount;
+    private final AccountManager accountManager;
+    private final AudioManager mAudio;
     public SyncTask(Context context){
         this.context = context;
+        accountManager = AccountManager.get(context);
+        mAudio = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+        Account[] accounts = accountManager.getAccountsByType(ACCOUNT_TYPE);
+
+        Log.i(LTAG,"Found "+accounts.length+" accounts with type "+ACCOUNT_TYPE);
+
+        if(accounts.length == 0){
+            mAudio.playSoundEffect(Sounds.ERROR);
+            throw new RuntimeException("Could not find account with type "+ACCOUNT_TYPE);
+        }
+
+        mAccount = accounts[0];
+
+        Log.i(LTAG,"Using account "+mAccount.name+" : "+mAccount.type);
     }
 
     protected final Context getContext(){
@@ -58,7 +84,7 @@ public class SyncTask{
 
 	private CountDownLatch serviceBarrier;
     private CountDownLatch doneBarrier;
-    private boolean syncStorable(Storable storable){
+    private boolean syncStorable(Storable storable,String token){
         if (BuildConfig.DEBUG && !storable.dirty) {
             throw new RuntimeException(
                     "We got a clean storable in the SyncAdapter! "
@@ -68,7 +94,7 @@ public class SyncTask{
         Log.i(LTAG, "sync storable " + storable);
 
 
-        if(storable.doSync()){
+        if(storable.doSync(token)){
             Log.i(LTAG, "Sync successful, writing back storable");
             storable.dirty = false;
             Message storemsg = Message.obtain();
@@ -164,12 +190,7 @@ public class SyncTask{
 
                         } else{
                             Storable s = (Storable) msg.obj;
-
-                            if (!syncStorable(s)) {
-                                finishSync();
-                            }else{
-                                continueSync();
-                            }
+                            authSyncStorable(s);
                         }
                         delivered = true;
                         break;
@@ -213,6 +234,35 @@ public class SyncTask{
 
 
         return SYNC_SUCCESS;
+    }
+
+    private void authSyncStorable(final Storable s){
+        accountManager.getAuthToken(mAccount, AUTH_TOKEN_TYPE, null, false, new AccountManagerCallback<Bundle>() {
+            public void run(AccountManagerFuture<Bundle> future) {
+                try {
+                    String token = future.getResult().getString(AccountManager.KEY_AUTHTOKEN);
+                    Log.i(LTAG,"Found token "+mAccount.name+" : "+token);
+                    if (!syncStorable(s,token)) {
+                        finishSync();
+                    }else{
+                        continueSync();
+                    }
+                } catch (Exception e) {
+                    try {
+                        if (e.getMessage() != null) {
+                            Log.e(LTAG, e.getMessage());
+                        }
+                        e.printStackTrace();
+                    }finally {
+                        try {
+                            finishSync();
+                        }catch(Exception e1){
+                            throw new RuntimeException("Cannot finish sync ",e1);
+                        }
+                    }
+                }
+            }
+        }, null);
     }
 
     private boolean isSyncing = false;

@@ -35,15 +35,16 @@ public final class Clip extends Storable{
 	private static final ClipService clipService = storableAdatper.create(ClipService.class);
 	
 	@Override
-	protected Response makeSyncRequest() throws RetrofitError {
+	protected Response makeSyncRequest(String token) throws RetrofitError {
 		File videoFile = new File(videoPath);
 		
 		if(!videoFile.exists()){
 			throw new RuntimeException("Invalid video path for clip: "+getJSONData());
 		}
 		
-		return clipService.postSyncData(new TypedString(getJSONData()),
-					new TypedString(DevData.GOOGLE_ID),
+		return clipService.postSyncData(
+                    new TypedString(getJSONData()),
+					new TypedString(token),
 					new TypedFile("video/mp4", videoFile)
 				);
 	}
@@ -67,8 +68,9 @@ public final class Clip extends Storable{
     private interface ClipService {
 		@Multipart
 		@PUT("/api/storable")
-		Response postSyncData(@Part("json_data") TypedString jsonData,
-				@Part("dummy_gid") TypedString dummyGid,
+		Response postSyncData(
+                @Part("json_data") TypedString jsonData,
+				@Part("token") TypedString token,
 				@Part("clip") TypedFile clipFile
 				);
 	}
