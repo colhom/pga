@@ -237,6 +237,7 @@ public class ClipService extends Service {
         CS_PUBLISH_CHAPTER("CS_PUBLISH_CHAPTER"),
         CS_PREVIEW_CHAPTER("CS_PREVIEW_CHAPTER"),
         CS_STOP_SERVICE("CS_STOP_SERVICE"),
+        CS_SYNC_END("CS_SYNC_END"),
         CS_FORCE_STOP_SERVICE("CS_FORCE_STOP_SERVICE")
         ;
 
@@ -295,6 +296,13 @@ public class ClipService extends Service {
                 case CS_FORCE_STOP_SERVICE:
                     ClipService.this.stopSelf();
                     break;
+                case CS_SYNC_END:
+                    Log.i(LTAG,"Sync end");
+                    if(mCachedActive == null || mCachedActive.clips.size() == 0){
+                        Log.i(LTAG,"Killing service on sync end");
+                        ClipService.this.stopSelf();
+                    }
+                    break;
                 default:
                     Log.w(LTAG,"taking default (no) action for received broadcast "+action);
                     break;
@@ -350,8 +358,9 @@ public class ClipService extends Service {
 
         RemoteViews dashView;
         if(mCachedActive.clips.size() == 0){
-            String dashString = String.format("No chapter in progress");
-            CardBuilder card = new CardBuilder(this,CardBuilder.Layout.TEXT).setText(Html.fromHtml(dashString));
+            CardBuilder card = new CardBuilder(this,CardBuilder.Layout.ALERT)
+                    .setIcon(R.drawable.ic_sync_50)
+                    .setText("Uploading Chapter");
             dashView = card.getRemoteViews();
         }else{
 

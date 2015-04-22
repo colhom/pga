@@ -19,10 +19,12 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.google.android.glass.media.Sounds;
 import com.repco.perfect.glassapp.BuildConfig;
+import com.repco.perfect.glassapp.ClipService;
 import com.repco.perfect.glassapp.base.Storable;
 import com.repco.perfect.glassapp.storage.StorageHandler;
 import com.repco.perfect.glassapp.storage.StorageService;
@@ -307,6 +309,11 @@ public class SyncTask{
 
                 {
                     mSyncStatus = doSync();
+                    if(mSyncStatus == SYNC_SUCCESS){
+                        Intent syncEnd = new Intent();
+                        syncEnd.setAction(ClipService.Action.CS_SYNC_END.toString());
+                        LocalBroadcastManager.getInstance(context).sendBroadcast(syncEnd);
+                    }
                 } catch (Exception e)
 
                 {
