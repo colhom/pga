@@ -4,6 +4,7 @@ import android.accounts.Account;
 import android.accounts.AccountManager;
 import android.accounts.AccountManagerCallback;
 import android.accounts.AccountManagerFuture;
+import android.accounts.OperationCanceledException;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -28,6 +29,7 @@ import com.repco.perfect.glassapp.storage.StorageService;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 public class SyncTask{
 
@@ -83,7 +85,7 @@ public class SyncTask{
 
 	private CountDownLatch serviceBarrier;
     private CountDownLatch doneBarrier;
-    private boolean syncStorable(Storable storable,String token){
+    private void syncStorable(Storable storable,String token){
         if (BuildConfig.DEBUG && !storable.dirty) {
             throw new RuntimeException(
                     "We got a clean storable in the SyncAdapter! "
@@ -93,23 +95,21 @@ public class SyncTask{
         Log.i(LTAG, "sync storable " + storable);
 
 
-        if(storable.doSync(token)){
-            Log.i(LTAG, "Sync successful, writing back storable");
-            storable.dirty = false;
-            Message storemsg = Message.obtain();
-            storemsg.what = StorageHandler.PUSH_STORABLE;
-            storemsg.obj = storable;
+        storable.doSync(token);
 
-            try {
-                mStorageMessenger.send(storemsg);
-            } catch (RemoteException e) {
-                throw new RuntimeException(e);
-            }
-            return true;
-        }else{
-            Log.w(LTAG,"Sync failed, will abort sync");
-            return false;
+
+        Log.i(LTAG, "Sync successful, writing back storable");
+        storable.dirty = false;
+        Message storemsg = Message.obtain();
+        storemsg.what = StorageHandler.PUSH_STORABLE;
+        storemsg.obj = storable;
+
+        try {
+            mStorageMessenger.send(storemsg);
+        } catch (RemoteException e) {
+            throw new RuntimeException(e);
         }
+
     }
     private void finishSync(){
         Log.i(LTAG,"finishSync()");
@@ -149,7 +149,7 @@ public class SyncTask{
             SYNC_INITIALIZING=5
     ;
 
-
+    private Exception syncException;
     private int doSync(){
         Log.i(LTAG, "Sync started");
 
@@ -221,7 +221,7 @@ public class SyncTask{
         } catch (InterruptedException e1) {
             throw new RuntimeException(e1);
         }
-
+        syncException = null;
         continueSync();
         Log.i(LTAG,"synced started, awaiting doneBarrier");
 
@@ -231,37 +231,49 @@ public class SyncTask{
             throw new RuntimeException(e);
         }
 
+        if(syncException != null){
+            Log.e(LTAG,"Sync Exception: "+syncException.getMessage());
+            return SYNC_ERROR;
+        }
 
         return SYNC_SUCCESS;
     }
 
     private void authSyncStorable(final Storable s){
+        final StringBuffer tokenBuf = new StringBuffer();
+
+        final CountDownLatch tokenLatch = new CountDownLatch(1);
         accountManager.getAuthToken(mAccount, AUTH_TOKEN_TYPE, null, false, new AccountManagerCallback<Bundle>() {
             public void run(AccountManagerFuture<Bundle> future) {
                 try {
                     String token = future.getResult().getString(AccountManager.KEY_AUTHTOKEN);
-                    Log.i(LTAG,"Found token "+mAccount.name+" : "+token);
-                    if (!syncStorable(s,token)) {
-                        finishSync();
-                    }else{
-                        continueSync();
-                    }
-                } catch (Exception e) {
-                    try {
-                        if (e.getMessage() != null) {
-                            Log.e(LTAG, e.getMessage());
-                        }
-                        e.printStackTrace();
-                    }finally {
-                        try {
-                            finishSync();
-                        }catch(Exception e1){
-                            throw new RuntimeException("Cannot finish sync ",e1);
-                        }
-                    }
+                    tokenBuf.append(token);
+                }catch(Exception e){
+                    syncException = e;
+                }finally{
+                    tokenLatch.countDown();
                 }
             }
         }, null);
+        try {
+            tokenLatch.await(10, TimeUnit.SECONDS);
+        }catch(InterruptedException e){
+            syncException = new RuntimeException("Interuppted waiting for token latch");
+        }
+
+        if(syncException != null){
+            finishSync();
+            return;
+        }
+
+        String token = tokenBuf.toString();
+        try {
+            syncStorable(s,token);
+            continueSync();
+        } catch (Exception e) {
+             syncException = e;
+             finishSync();
+        }
     }
 
     private boolean isSyncing = false;

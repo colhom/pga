@@ -76,22 +76,16 @@ public abstract class Storable implements Serializable{
 			.setEndpoint(DevData.API_HOST).build();
 	
 
-	public final boolean doSync(String token){
+	public final void doSync(String token){
 		Response res;
-		try{
 			
-			res = makeSyncRequest(token);
-		}catch(RetrofitError e){
-			e.printStackTrace();
-			return false;
-		}
-		
+		res = makeSyncRequest(token);
+
 		if(res.getStatus() == 200){
 			Log.i(LTAG, "Successful sync!");
-			return true;
-		}
-		Log.w(LTAG, "Retrofit: "+res.getStatus()+" : "+res.getReason());
-		return false;
+		}else{
+            throw new RuntimeException("Sync response returns "+res.getStatus()+" : "+res.getReason());
+        }
 	}
 
 	protected abstract Response makeSyncRequest(String token) throws RetrofitError;
