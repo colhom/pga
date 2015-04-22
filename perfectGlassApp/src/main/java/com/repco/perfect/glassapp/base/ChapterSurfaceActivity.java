@@ -1,18 +1,13 @@
 package com.repco.perfect.glassapp.base;
 
 import android.content.Context;
-import android.graphics.drawable.Drawable;
 import android.media.AudioManager;
 import android.os.Bundle;
-import android.view.Menu;
 import android.view.TextureView;
 import android.view.View;
-import android.widget.ImageView;
-import android.widget.TextView;
 
 import com.google.android.glass.view.WindowUtils;
 import com.google.android.glass.widget.Slider;
-import com.repco.perfect.glassapp.R;
 
 import java.util.Timer;
 import java.util.TimerTask;

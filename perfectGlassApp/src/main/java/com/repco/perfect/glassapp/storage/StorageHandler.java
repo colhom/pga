@@ -1,12 +1,10 @@
 package com.repco.perfect.glassapp.storage;
 
-import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
@@ -15,7 +13,6 @@ import android.os.RemoteException;
 import android.util.Log;
 
 import com.repco.perfect.glassapp.BuildConfig;
-import com.repco.perfect.glassapp.ClipService;
 import com.repco.perfect.glassapp.base.Storable;
 
 import java.util.Date;

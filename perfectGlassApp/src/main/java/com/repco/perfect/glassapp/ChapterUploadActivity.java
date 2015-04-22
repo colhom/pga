@@ -5,9 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
-import android.util.Log;
 import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 
 import com.google.android.glass.widget.Slider;
@@ -33,7 +31,7 @@ public class ChapterUploadActivity extends ChapterStatusActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mChapter = (Chapter) getIntent().getSerializableExtra("chapter");
-        previewReel = new Bitmap[Math.min(mChapter.clips.size(),10)];
+        previewReel = new Bitmap[Math.min(mChapter.clips.size(), 10)];
 
         showStatusViews("", R.drawable.ic_video_50);
         mLoading.show();
@@ -71,7 +69,7 @@ public class ChapterUploadActivity extends ChapterStatusActivity {
 
         mPreviewTimer.scheduleAtFixedRate(mPreviewFlipper, 0, 300);
         mLoading.hide();
-        showStatusViews("Publishing Chapter...",R.drawable.ic_video_50);
+        showStatusViews("Publishing Chapter...", R.drawable.ic_video_50);
         mGraceSlider = mSlider.startGracePeriod(new Slider.GracePeriod.Listener() {
 
             @Override

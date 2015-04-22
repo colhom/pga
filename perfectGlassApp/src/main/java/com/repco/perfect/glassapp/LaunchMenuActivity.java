@@ -2,23 +2,13 @@ package com.repco.perfect.glassapp;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
-import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
 
-import com.google.android.glass.widget.Slider;
-import com.repco.perfect.glassapp.base.ChapterStatusActivity;
 import com.repco.perfect.glassapp.storage.Chapter;
-import com.repco.perfect.glassapp.storage.Clip;
-
-import java.util.Timer;
-import java.util.TimerTask;
 
 public class LaunchMenuActivity extends Activity {
     private final String LTAG=this.getClass().getSimpleName();

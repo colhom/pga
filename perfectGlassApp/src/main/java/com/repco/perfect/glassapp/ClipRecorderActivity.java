@@ -15,7 +15,6 @@ import android.util.Log;
 import android.view.Display;
 import android.view.KeyEvent;
 import android.view.Surface;
-import android.view.TextureView;
 import android.view.WindowManager;
 
 import com.google.android.glass.media.Sounds;

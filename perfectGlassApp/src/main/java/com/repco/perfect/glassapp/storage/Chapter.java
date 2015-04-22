@@ -3,7 +3,6 @@ package com.repco.perfect.glassapp.storage;
 import android.util.Log;
 
 import com.google.gson.annotations.Expose;
-import com.repco.perfect.glassapp.DevData;
 import com.repco.perfect.glassapp.base.Storable;
 
 import java.util.ArrayList;
