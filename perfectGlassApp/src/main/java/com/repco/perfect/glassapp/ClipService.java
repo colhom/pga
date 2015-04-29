@@ -367,9 +367,15 @@ public class ClipService extends Service {
             long chapterStart = mCachedActive.clips.get(0).ts.getTime();
             long now = new Date().getTime();
             String diffString = DateUtils.getRelativeDateTimeString(this,chapterStart,DateUtils.MINUTE_IN_MILLIS,DateUtils.WEEK_IN_MILLIS,0).toString().split(",")[0];
+            String momentColor;
             int clipCount = mCachedActive.clips.size();
 
-            String dashString = String.format("Your chapter has <font color='#99cc33'>%d</font> moments and started <font color='#ddbb11'>%s</font>", clipCount, diffString);
+            if (clipCount < 3)
+                momentColor = "#cc3333";
+            else
+                momentColor = "#99cc33";
+
+            String dashString = String.format("Your chapter has <font color='%s'>%d</font> moments and started <font color='#ddbb11'>%s</font>", momentColor,clipCount, diffString);
             BitmapFactory.Options bmOptions = new BitmapFactory.Options();
 
             CardBuilder card = new CardBuilder(this, CardBuilder.Layout.COLUMNS)
