@@ -1,13 +1,16 @@
 package com.repco.perfect.glassapp;
 
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.AudioManager;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
 import android.view.Menu;
 import android.view.View;
 
+import com.google.android.glass.media.Sounds;
 import com.google.android.glass.widget.Slider;
 import com.repco.perfect.glassapp.base.ChapterStatusActivity;
 import com.repco.perfect.glassapp.storage.Chapter;
@@ -23,6 +26,7 @@ public class ChapterUploadActivity extends ChapterStatusActivity {
     private final String LTAG=this.getClass().getSimpleName();
 
     private Chapter mChapter;
+    private AudioManager mAudio;
 
     Bitmap[] previewReel;
     TimerTask mPreviewFlipper;
@@ -35,7 +39,7 @@ public class ChapterUploadActivity extends ChapterStatusActivity {
 
         showStatusViews("", R.drawable.ic_video_50);
         mLoading.show();
-
+        mAudio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
     }
 
     @Override
@@ -75,11 +79,26 @@ public class ChapterUploadActivity extends ChapterStatusActivity {
             @Override
             public void onGracePeriodEnd() {
                 mGraceSlider = null;
-                showStatusViews("Chapter Published!",R.drawable.ic_done_50);
+
                 Intent intent = new Intent();
                 intent.setAction(ClipService.Action.CS_PUBLISH_CHAPTER.toString());
                 LocalBroadcastManager.getInstance(ChapterUploadActivity.this).sendBroadcast(intent);
+
+                boolean noWifi = true;
+
+                if (noWifi){
+                    Intent warn = new Intent(ChapterUploadActivity.this,PublishWarningActivity.class);
+                    warn.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+                    mAudio.playSoundEffect(Sounds.ERROR);
+                    startActivity(warn);
+                }else{
+                    showStatusViews("Chapter Published!",R.drawable.ic_done_50);
+                    mAudio.playSoundEffect(Sounds.SUCCESS);
+
+                }
+
                 finish();
+
             }
 
             @Override

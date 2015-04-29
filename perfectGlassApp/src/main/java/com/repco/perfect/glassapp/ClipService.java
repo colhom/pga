@@ -218,7 +218,6 @@ public class ClipService extends Service {
                     if (active == null){
                         mAudio.playSoundEffect(Sounds.DISALLOWED);
                     }else{
-                        mAudio.playSoundEffect(Sounds.SUCCESS);
                         sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null);
                     }
                     break;
@@ -358,9 +357,44 @@ public class ClipService extends Service {
 
         RemoteViews dashView;
         if(mCachedActive.clips.size() == 0){
+            mSyncTask.getSyncStatus();
+            String footnote;
+            String mainText = "Uploading chapter";
+                switch (mSyncTask.getSyncStatus()){
+
+                    case SyncTask.SYNC_ERROR:
+                        footnote = "There was an error";
+                        break;
+
+                    case SyncTask.SYNC_NO_NETWORK:
+                        footnote = "We need wifi to continue sync";
+                        break;
+                    case SyncTask.SYNC_ONLY_METERED:
+                        footnote = "We're saving your 4G data";
+                        break;
+                    case SyncTask.SYNC_INITIALIZING:
+                    case SyncTask.SYNC_IN_PROGRESS:
+                        footnote = "Sit tight!";
+                        break;
+                    case SyncTask.SYNC_SUCCESS:
+                        mainText = "Upload complete!";
+                        footnote = "Watch on chapterapp.io";
+                        break;
+                    default:
+                        footnote = "default";
+                        break;
+                }
+//            SYNC_SUCCESS = 0,
+//                    SYNC_NO_NETWORK = 1,
+//                    SYNC_ONLY_METERED=2,
+//                    SYNC_ERROR =3,
+//                    SYNC_IN_PROGRESS=4,
+//                    SYNC_INITIALIZING=5
+
             CardBuilder card = new CardBuilder(this,CardBuilder.Layout.ALERT)
                     .setIcon(R.drawable.ic_sync_50)
-                    .setText("Uploading Chapter");
+                    .setText(mainText)
+                    .setFootnote(footnote);
             dashView = card.getRemoteViews();
         }else{
 
