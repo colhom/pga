@@ -48,7 +48,7 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
         super.onActivityResult(requestCode, resultCode, data);
         switch (requestCode) {
             case CAPTURE_REQUEST_CODE:
-                showStatusViews("",R.drawable.ic_video_50);
+                showStatusViews("",R.drawable.ic_video_100);
                 mClip = new Clip(
                         data.getStringExtra("outputFile"),
                         data.getStringExtra("previewFile")
@@ -64,7 +64,7 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
 
                 break;
             case PREVIEW_REQUEST_CODE:
-                showStatusViews("",R.drawable.ic_video_50);
+                showStatusViews("",R.drawable.ic_video_100);
                 break;
 
             default:

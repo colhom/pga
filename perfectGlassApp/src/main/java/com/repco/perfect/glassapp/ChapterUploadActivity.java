@@ -73,7 +73,7 @@ public class ChapterUploadActivity extends ChapterStatusActivity {
 
         mPreviewTimer.scheduleAtFixedRate(mPreviewFlipper, 0, 300);
         mLoading.hide();
-        showStatusViews("Publishing Chapter...", R.drawable.ic_video_50);
+        showStatusViews("Publishing", R.drawable.ic_video_50);
         mGraceSlider = mSlider.startGracePeriod(new Slider.GracePeriod.Listener() {
 
             @Override
@@ -92,7 +92,7 @@ public class ChapterUploadActivity extends ChapterStatusActivity {
                     mAudio.playSoundEffect(Sounds.ERROR);
                     startActivity(warn);
                 }else{
-                    showStatusViews("Chapter Published!",R.drawable.ic_done_50);
+                    showStatusViews("Published!",R.drawable.ic_done_50);
                     mAudio.playSoundEffect(Sounds.SUCCESS);
 
                 }
