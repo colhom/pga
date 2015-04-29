@@ -115,11 +115,17 @@ public abstract class ChapterStatusActivity extends ChapterActivity{
     //If actionText is empty string, voice menu is enabled. kinda funky
     protected void showStatusViews(String actionText, int iconID){
         mMenuEnabled = actionText.isEmpty();
-        mStatusTextView.setText(actionText);
         Drawable src = getResources().getDrawable(iconID);
         mStatusImageView.setImageDrawable(src);
         mStatusImageView.setVisibility(View.VISIBLE);
-        mStatusTextView.setVisibility(View.VISIBLE);
+        if (actionText == ""){
+            mStatusTextView.setVisibility(View.GONE);
+        }else{
+            mStatusTextView.setText(actionText);
+            mStatusTextView.setVisibility(View.VISIBLE);
+        }
+
+
     }
 
     protected void hideStatusView(){

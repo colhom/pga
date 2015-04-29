@@ -5,35 +5,30 @@
         android:id="@+id/background_image_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
-    <LinearLayout
+    <RelativeLayout
         android:id="@+id/status_overlay"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_marginLeft="@dimen/glass_card_margin"
-        android:layout_marginBottom="@dimen/glass_card_footer_margin"
-        android:layout_marginRight="@dimen/glass_card_margin"
-        android:orientation="vertical"
+        android:layout_height="match_parent"
+        android:gravity="center"
         >
         <ImageView
             android:id="@+id/status_icon"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:visibility="invisible"
-            android:layout_gravity="center_horizontal"
+            android:layout_centerInParent="true"
+            android:layout_toLeftOf="@+id/status_text"
             />
 
         <TextView
             android:id="@+id/status_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_marginLeft="35px"
             android:ellipsize="end"
             android:singleLine="true"
-            android:textAppearance="?android:attr/textAppearanceMedium"
-            android:visibility="invisible"
-            android:layout_gravity="center_horizontal"
+            android:textAppearance="?android:attr/textAppearanceLarge"
+            android:layout_centerInParent="true"
+            android:visibility="gone"
             />
-    </LinearLayout>
+    </RelativeLayout>
 </FrameLayout>

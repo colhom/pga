@@ -41,25 +41,14 @@ public class SyncTask{
     public static final String ACCOUNT_TYPE = "com.repco.perfect.glassapp.account";
 
     private final Context context;
-    private final Account mAccount;
     private final AccountManager accountManager;
     private final AudioManager mAudio;
     public SyncTask(Context context){
         this.context = context;
         accountManager = AccountManager.get(context);
         mAudio = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-        Account[] accounts = accountManager.getAccountsByType(ACCOUNT_TYPE);
 
-        Log.i(LTAG,"Found "+accounts.length+" accounts with type "+ACCOUNT_TYPE);
 
-        if(accounts.length == 0){
-            mAudio.playSoundEffect(Sounds.ERROR);
-            throw new RuntimeException("Could not find account with type "+ACCOUNT_TYPE);
-        }
-
-        mAccount = accounts[0];
-
-        Log.i(LTAG,"Using account "+mAccount.name+" : "+mAccount.type);
     }
 
     protected final Context getContext(){
@@ -242,10 +231,24 @@ public class SyncTask{
     }
 
     private void authSyncStorable(final Storable s){
+        Account[] accounts = accountManager.getAccountsByType(ACCOUNT_TYPE);
+
+        Log.i(LTAG,"Found "+accounts.length+" accounts with type "+ACCOUNT_TYPE);
+
+        if(accounts.length == 0){
+            syncException = new RuntimeException("Could not find account with type "+ACCOUNT_TYPE);
+            finishSync();
+            return;
+        }
+
+
+        Account account = accounts[0];
+
         final StringBuffer tokenBuf = new StringBuffer();
 
         final CountDownLatch tokenLatch = new CountDownLatch(1);
-        accountManager.getAuthToken(mAccount, AUTH_TOKEN_TYPE, null, false, new AccountManagerCallback<Bundle>() {
+
+        accountManager.getAuthToken(account, AUTH_TOKEN_TYPE, null, false, new AccountManagerCallback<Bundle>() {
             public void run(AccountManagerFuture<Bundle> future) {
                 try {
                     String token = future.getResult().getString(AccountManager.KEY_AUTHTOKEN);
