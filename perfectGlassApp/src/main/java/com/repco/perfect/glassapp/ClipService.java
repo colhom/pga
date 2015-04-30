@@ -237,7 +237,8 @@ public class ClipService extends Service {
         CS_PREVIEW_CHAPTER("CS_PREVIEW_CHAPTER"),
         CS_STOP_SERVICE("CS_STOP_SERVICE"),
         CS_SYNC_END("CS_SYNC_END"),
-        CS_FORCE_STOP_SERVICE("CS_FORCE_STOP_SERVICE")
+        CS_FORCE_STOP_SERVICE("CS_FORCE_STOP_SERVICE"),
+        CS_MAYBE_STOP_SERVICE("CS_MAYBE_STOP_SERVICE")
         ;
 
         private final String val;
@@ -290,6 +291,14 @@ public class ClipService extends Service {
                         Intent i = new Intent(ClipService.this,SyncExitActivity.class);
                         i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
                         startActivity(i);
+                    }
+                    break;
+                case CS_MAYBE_STOP_SERVICE:
+                    if(clipTaken){
+                        Log.i(LTAG,"Clip taken, will not stop service");
+                    }else{
+                        Log.i(LTAG,"No clip taken, will STOP service");
+                        ClipService.this.stopSelf();
                     }
                     break;
                 case CS_FORCE_STOP_SERVICE:
@@ -468,6 +477,7 @@ public class ClipService extends Service {
             unregisterReceiver(mNetworkReceiver);
         }catch(IllegalArgumentException e){
             e.printStackTrace();
+            Log.w(LTAG,"This exception (should!!) mean that the receiver was never registered. This should be ok");
         }
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mReceiver);
         isStopped = true;

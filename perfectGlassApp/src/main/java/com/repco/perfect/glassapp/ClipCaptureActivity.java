@@ -76,7 +76,6 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
 
         Intent returnIntent = new Intent();
@@ -90,7 +89,7 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
         } else {
             //No save clip --> delete files, stop service
             cleanupFiles();
-            returnIntent.setAction(ClipService.Action.CS_FORCE_STOP_SERVICE.toString());
+            returnIntent.setAction(ClipService.Action.CS_MAYBE_STOP_SERVICE.toString());
         }
         LocalBroadcastManager.getInstance(this).sendBroadcast(returnIntent);
         closeOptionsMenu();

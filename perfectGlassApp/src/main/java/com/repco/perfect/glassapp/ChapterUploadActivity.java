@@ -5,8 +5,11 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.AudioManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
+import android.util.Log;
 import android.view.Menu;
 import android.view.View;
 
@@ -84,7 +87,23 @@ public class ChapterUploadActivity extends ChapterStatusActivity {
                 intent.setAction(ClipService.Action.CS_PUBLISH_CHAPTER.toString());
                 LocalBroadcastManager.getInstance(ChapterUploadActivity.this).sendBroadcast(intent);
 
-                boolean noWifi = true;
+                boolean noWifi = false;
+
+                ConnectivityManager connManager = (ConnectivityManager) ChapterUploadActivity.this
+                        .getSystemService(Context.CONNECTIVITY_SERVICE);
+
+                NetworkInfo mWifi = connManager.getActiveNetworkInfo();
+
+                if (mWifi == null) {
+                    Log.i(LTAG, "No active network connection");
+                    noWifi = true;
+                }
+
+                if (connManager.isActiveNetworkMetered()) {
+                    Log.i("LTAG",
+                            "Active network connection is metered");
+                    noWifi = true;
+                }
 
                 if (noWifi){
                     Intent warn = new Intent(ChapterUploadActivity.this,PublishWarningActivity.class);

@@ -28,7 +28,6 @@ public class ClipPreviewActivity extends ChapterSurfaceActivity {
 		super.onCreate(savedInstanceState);
 		mPlayer = new MediaPlayer();
         mChapter = (Chapter) getIntent().getSerializableExtra("chapter");
-		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         mTextureView.setSurfaceTextureListener(this);
 	}
@@ -42,11 +41,6 @@ public class ClipPreviewActivity extends ChapterSurfaceActivity {
         finish();
     }
 
-    @Override
-	protected void onDestroy() {
-		super.onDestroy();
-        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-	}
 
 	
 	@Override
