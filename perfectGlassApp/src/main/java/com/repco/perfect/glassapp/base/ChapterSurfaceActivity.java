@@ -5,6 +5,7 @@ import android.media.AudioManager;
 import android.os.Bundle;
 import android.view.TextureView;
 import android.view.View;
+import android.view.WindowManager;
 
 import com.google.android.glass.view.WindowUtils;
 import com.google.android.glass.widget.Slider;
@@ -40,12 +41,14 @@ public abstract class ChapterSurfaceActivity extends ChapterActivity implements 
         setContentView(cv);
 
         mLoading = mSlider.startIndeterminate();
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         finishClipTimer();
     }
 

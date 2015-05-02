@@ -48,7 +48,6 @@ public class ClipRecorderActivity extends ChapterSurfaceActivity implements Medi
         mResultCode = RESULT_CANCELED;
         mResultData = new Intent();
         setResult(mResultCode,mResultData);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         mTextureView.setSurfaceTextureListener(this);
 
@@ -211,13 +210,6 @@ public class ClipRecorderActivity extends ChapterSurfaceActivity implements Medi
         finish();
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-
-        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
-    }
 
     @Override
     public void onError(MediaRecorder mr, int what, int extra) {
