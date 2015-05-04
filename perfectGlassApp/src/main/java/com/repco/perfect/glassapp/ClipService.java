@@ -368,7 +368,7 @@ public class ClipService extends Service {
         if(mCachedActive.clips.size() == 0){
             mSyncTask.getSyncStatus();
             String footnote;
-            String mainText = "Uploading chapter";
+            String mainText = "Attempting upload";
                 switch (mSyncTask.getSyncStatus()){
 
                     case SyncTask.SYNC_ERROR:
@@ -401,7 +401,7 @@ public class ClipService extends Service {
 //                    SYNC_INITIALIZING=5
 
             CardBuilder card = new CardBuilder(this,CardBuilder.Layout.ALERT)
-                    .setIcon(R.drawable.ic_sync_50)
+                    .setIcon(R.drawable.ic_sync_100)
                     .setText(mainText)
                     .setFootnote(footnote);
             dashView = card.getRemoteViews();

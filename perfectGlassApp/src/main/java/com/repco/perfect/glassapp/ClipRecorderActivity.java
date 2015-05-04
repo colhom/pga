@@ -105,6 +105,8 @@ public class ClipRecorderActivity extends ChapterSurfaceActivity implements Medi
         mRec.start();
         mDeterminate = mSlider.startDeterminate(1, 0.f);
         firstSurfaceUpdate = false;
+
+
     }
 
     private boolean firstSurfaceUpdate;
@@ -227,14 +229,7 @@ public class ClipRecorderActivity extends ChapterSurfaceActivity implements Medi
     private static final String LTAG = ClipRecorderActivity.class.getSimpleName();
 
 
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if(keyCode == KeyEvent.KEYCODE_DPAD_CENTER){
-            am.playSoundEffect(Sounds.DISALLOWED);
-            return true;
-        }
-        return super.onKeyDown(keyCode, event);
-    }
+
 
 
 }

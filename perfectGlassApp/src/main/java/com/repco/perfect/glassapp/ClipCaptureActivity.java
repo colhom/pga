@@ -166,12 +166,12 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
     }
 
     private void addClipToChapter(){
-        showStatusViews("Adding clip",R.drawable.ic_video_50);
+        showStatusViews("Adding",R.drawable.ic_video_50);
         mGraceSlider = mSlider.startGracePeriod(new Slider.GracePeriod.Listener() {
             @Override
             public void onGracePeriodEnd() {
                 mGraceSlider = null;
-                showStatusViews("Clip Added!",R.drawable.ic_done_50);
+                showStatusViews("Added",R.drawable.ic_done_50);
                 clipSaved = true;
                 finish();
             }
@@ -200,13 +200,14 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
     }
 
     private void deleteClip(){
-        showStatusViews("Deleting clip...",R.drawable.ic_delete_50);
+        showStatusViews("Deleting",R.drawable.ic_delete_50);
         mGraceSlider = mSlider.startGracePeriod(new Slider.GracePeriod.Listener() {
 
             @Override
             public void onGracePeriodEnd() {
                 mGraceSlider = null;
-                showStatusViews("Clip Deleted!",R.drawable.ic_done_50);
+                showStatusViews("Deleted",R.drawable.ic_done_50);
+                am.playSoundEffect(Sounds.SUCCESS);
                 finish();
             }
 
