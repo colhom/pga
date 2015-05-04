@@ -224,6 +224,7 @@ public class SyncTask{
 
         if(syncException != null){
             Log.e(LTAG,"Sync Exception: "+syncException.getMessage());
+            syncException.printStackTrace();
             return SYNC_ERROR;
         }
 
