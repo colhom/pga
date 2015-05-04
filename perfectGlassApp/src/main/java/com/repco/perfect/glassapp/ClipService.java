@@ -368,7 +368,7 @@ public class ClipService extends Service {
         if(mCachedActive.clips.size() == 0){
             mSyncTask.getSyncStatus();
             String footnote;
-            String mainText = "Attempting upload";
+            String mainText = "Upload in progress";
                 switch (mSyncTask.getSyncStatus()){
 
                     case SyncTask.SYNC_ERROR:
