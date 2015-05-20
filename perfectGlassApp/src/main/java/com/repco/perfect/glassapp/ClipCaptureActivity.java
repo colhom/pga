@@ -3,18 +3,18 @@ package com.repco.perfect.glassapp;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.View;
-import android.view.WindowManager;
 
 import com.google.android.glass.media.Sounds;
 import com.google.android.glass.view.WindowUtils;
 import com.google.android.glass.widget.Slider;
+import com.repco.perfect.glassapp.base.ChapterSliderActivity;
 import com.repco.perfect.glassapp.base.ChapterStatusActivity;
 import com.repco.perfect.glassapp.storage.Chapter;
 import com.repco.perfect.glassapp.storage.Clip;
@@ -23,10 +23,50 @@ import java.io.File;
 
 public class ClipCaptureActivity extends ChapterStatusActivity {
 
+    public static final class ClipAddSliderActivity extends ChapterSliderActivity{
 
-    @Override
-    public View getContentView() {
-        return getLayoutInflater().inflate(R.layout.clip_capture,null);
+        @Override
+        protected String getStatusText(boolean inProgress) {
+            if(inProgress){
+                return "Adding";
+            }else{
+                return "Added";
+            }
+        }
+
+        @Override
+        protected Drawable getStatusIcon(boolean inProgress) {
+            int resId;
+            if(inProgress){
+                resId = R.drawable.ic_video_50;
+            }else{
+                resId = R.drawable.ic_done_50;
+            }
+            return getResources().getDrawable(resId);
+        }
+    }
+
+    public static final class ClipDeleteSliderActivity extends ChapterSliderActivity{
+
+        @Override
+        protected String getStatusText(boolean inProgress) {
+            if(inProgress){
+                return "Deleting";
+            }else{
+                return "Deleted";
+            }
+        }
+
+        @Override
+        protected Drawable getStatusIcon(boolean inProgress) {
+            int resId;
+            if(inProgress){
+                resId = R.drawable.ic_video_50;
+            }else{
+                resId = R.drawable.ic_done_50;
+            }
+            return getResources().getDrawable(resId);
+        }
     }
 
     private boolean clipSaved = false;
@@ -37,18 +77,19 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
         super.onCreate(savedInstanceState);
         clipSaved = false;
         mClip = null;
+        mStatusImageView.setImageResource(R.drawable.ic_video_100);
         captureClip();
     }
 
     private static final int PREVIEW_REQUEST_CODE = 1,
-            CAPTURE_REQUEST_CODE = 2;
+            CAPTURE_REQUEST_CODE = 2, ADD_CLIP_SLIDER_REQUEST_CODE =3,
+    DELETE_CLIP_SLIDER_REQUEST_CODE=4;
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         switch (requestCode) {
             case CAPTURE_REQUEST_CODE:
-                showStatusViews("",R.drawable.ic_video_100);
                 mClip = new Clip(
                         data.getStringExtra("outputFile"),
                         data.getStringExtra("previewFile")
@@ -64,9 +105,22 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
 
                 break;
             case PREVIEW_REQUEST_CODE:
-                showStatusViews("",R.drawable.ic_video_100);
                 break;
 
+            case ADD_CLIP_SLIDER_REQUEST_CODE:
+                clipSaved = (resultCode == RESULT_OK);
+                if(clipSaved){
+                    finish();
+                }
+                break;
+            case DELETE_CLIP_SLIDER_REQUEST_CODE:
+                boolean clipDeleted = (resultCode == RESULT_OK);
+                if(clipDeleted){
+                    am.playSoundEffect(Sounds.SUCCESS);
+                    clipSaved = false;
+                    finish();
+                }
+                break;
             default:
 
                 break;
@@ -95,15 +149,6 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
         closeOptionsMenu();
     }
 
-    private void captureClip() {
-        hideStatusView();
-        if(mClip != null){
-            cleanupFiles();
-            mClip = null;
-        }
-        startActivityForResult(new Intent(this, ClipRecorderActivity.class),CAPTURE_REQUEST_CODE);
-
-    }
     private void cleanupFiles(){
         if(mClip == null){
             return;
@@ -166,28 +211,18 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
     }
 
     private void addClipToChapter(){
-        showStatusViews("Adding",R.drawable.ic_video_50);
-        mGraceSlider = mSlider.startGracePeriod(new Slider.GracePeriod.Listener() {
-            @Override
-            public void onGracePeriodEnd() {
-                mGraceSlider = null;
-                showStatusViews("Added",R.drawable.ic_done_50);
-                clipSaved = true;
-                finish();
-            }
-
-            @Override
-            public void onGracePeriodCancel() {
-                mGraceSlider = null;
-                System.out.println("[saveClip] grace period cancelled");
-                showStatusViews("",R.drawable.ic_video_50);
-                clipSaved = false; // just to be "safe".
-            }
-        });
+        Intent addClip = new Intent(this,ClipAddSliderActivity.class);
+        startActivityForResult(addClip,ADD_CLIP_SLIDER_REQUEST_CODE);
     }
-
+    private void captureClip() {
+        if(mClip != null){
+            cleanupFiles();
+            mClip = null;
+        }
+        startActivityForResult(new Intent(this, ClipRecorderActivity.class),CAPTURE_REQUEST_CODE);
+    }
     private void replayClip(){
-        hideStatusView();
+
         Chapter clipChapter = new Chapter();
         clipChapter.clips.add(mClip);
 
@@ -200,25 +235,11 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
     }
 
     private void deleteClip(){
-        showStatusViews("Deleting",R.drawable.ic_delete_50);
-        mGraceSlider = mSlider.startGracePeriod(new Slider.GracePeriod.Listener() {
-
-            @Override
-            public void onGracePeriodEnd() {
-                mGraceSlider = null;
-                showStatusViews("Deleted",R.drawable.ic_done_50);
-                am.playSoundEffect(Sounds.SUCCESS);
-                finish();
-            }
-
-            @Override
-            public void onGracePeriodCancel() {
-                showStatusViews("",R.drawable.ic_video_50);
-                mGraceSlider = null;
-            }
-        });
-
+        Intent deleteClip = new Intent(this,ClipDeleteSliderActivity.class);
+        startActivityForResult(deleteClip,DELETE_CLIP_SLIDER_REQUEST_CODE);
     }
+
+
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {

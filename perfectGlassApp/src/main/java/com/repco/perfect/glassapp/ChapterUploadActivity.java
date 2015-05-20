@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.Drawable;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -15,6 +16,7 @@ import android.view.View;
 
 import com.google.android.glass.media.Sounds;
 import com.google.android.glass.widget.Slider;
+import com.repco.perfect.glassapp.base.ChapterSliderActivity;
 import com.repco.perfect.glassapp.base.ChapterStatusActivity;
 import com.repco.perfect.glassapp.storage.Chapter;
 import com.repco.perfect.glassapp.storage.Clip;
@@ -26,6 +28,30 @@ import java.util.TimerTask;
  * Created by chom on 4/17/15.
  */
 public class ChapterUploadActivity extends ChapterStatusActivity {
+
+    public static final class ChapterUploadSliderActivity extends ChapterSliderActivity{
+        @Override
+        protected String getStatusText(boolean inProgress) {
+            if(inProgress){
+                return "Uploading";
+            }else{
+                return "Uploaded";
+            }
+        }
+
+        @Override
+        protected Drawable getStatusIcon(boolean inProgress) {
+            int resId;
+            if(inProgress){
+                resId = R.drawable.ic_video_50;
+            }else{
+                resId = R.drawable.ic_done_50;
+            }
+
+            return getResources().getDrawable(resId);
+        }
+    }
+
     private final String LTAG=this.getClass().getSimpleName();
 
     private Chapter mChapter;
@@ -34,15 +60,14 @@ public class ChapterUploadActivity extends ChapterStatusActivity {
     Bitmap[] previewReel;
     TimerTask mPreviewFlipper;
     Timer mPreviewTimer;
+    private static final int UPLOAD_CHAPTER_SLIDER_REQUEST_CODE=1;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mChapter = (Chapter) getIntent().getSerializableExtra("chapter");
         previewReel = new Bitmap[Math.min(mChapter.clips.size(), 10)];
-
-        showStatusViews("", R.drawable.ic_video_50);
-        mLoading.show();
         mAudio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        mStatusImageView.setImageResource(R.drawable.ic_video_50);
     }
 
     @Override
@@ -75,58 +100,52 @@ public class ChapterUploadActivity extends ChapterStatusActivity {
         mPreviewTimer = new Timer();
 
         mPreviewTimer.scheduleAtFixedRate(mPreviewFlipper, 0, 300);
-        mLoading.hide();
-        showStatusViews("Uploading", R.drawable.ic_video_50);
-        mGraceSlider = mSlider.startGracePeriod(new Slider.GracePeriod.Listener() {
+        Intent uploadChapter = new Intent(this,ChapterUploadSliderActivity.class);
+        boolean noWifi = false;
 
-            @Override
-            public void onGracePeriodEnd() {
-                mGraceSlider = null;
+        ConnectivityManager connManager = (ConnectivityManager) ChapterUploadActivity.this
+                .getSystemService(Context.CONNECTIVITY_SERVICE);
 
-                Intent intent = new Intent();
-                intent.setAction(ClipService.Action.CS_PUBLISH_CHAPTER.toString());
-                LocalBroadcastManager.getInstance(ChapterUploadActivity.this).sendBroadcast(intent);
+        NetworkInfo mWifi = connManager.getActiveNetworkInfo();
 
-                boolean noWifi = false;
+        if (mWifi == null) {
+            Log.i(LTAG, "No active network connection");
+            noWifi = true;
+        }
 
-                ConnectivityManager connManager = (ConnectivityManager) ChapterUploadActivity.this
-                        .getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (connManager.isActiveNetworkMetered()) {
+            Log.i("LTAG",
+                    "Active network connection is metered");
+            noWifi = true;
+        }
 
-                NetworkInfo mWifi = connManager.getActiveNetworkInfo();
+        if (noWifi){
+            Intent warn = new Intent(ChapterUploadActivity.this,PublishWarningActivity.class);
+            warn.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+            mAudio.playSoundEffect(Sounds.ERROR);
+            startActivity(warn);
+        }else {
+            startActivityForResult(uploadChapter, UPLOAD_CHAPTER_SLIDER_REQUEST_CODE);
+        }
+//        startActivityForResult(uploadChapter, UPLOAD_CHAPTER_SLIDER_REQUEST_CODE);
+    }
 
-                if (mWifi == null) {
-                    Log.i(LTAG, "No active network connection");
-                    noWifi = true;
-                }
-
-                if (connManager.isActiveNetworkMetered()) {
-                    Log.i("LTAG",
-                            "Active network connection is metered");
-                    noWifi = true;
-                }
-
-                if (noWifi){
-                    Intent warn = new Intent(ChapterUploadActivity.this,PublishWarningActivity.class);
-                    warn.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-                    mAudio.playSoundEffect(Sounds.ERROR);
-                    startActivity(warn);
-                }else{
-                    showStatusViews("Uploaded",R.drawable.ic_done_50);
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        switch (requestCode){
+            case UPLOAD_CHAPTER_SLIDER_REQUEST_CODE:
+                if (resultCode == RESULT_OK){
                     mAudio.playSoundEffect(Sounds.SUCCESS);
-
+                    Intent intent = new Intent();
+                    intent.setAction(ClipService.Action.CS_PUBLISH_CHAPTER.toString());
+                    LocalBroadcastManager.getInstance(ChapterUploadActivity.this).sendBroadcast(intent);
                 }
-
                 finish();
+                break;
 
-            }
-
-            @Override
-            public void onGracePeriodCancel() {
-                mGraceSlider = null;
-                showStatusViews("",R.drawable.ic_video_50);
-                finish();
-            }
-        });
+            default:
+                super.onActivityResult(requestCode, resultCode, data);
+        }
     }
 
     @Override
@@ -140,12 +159,6 @@ public class ChapterUploadActivity extends ChapterStatusActivity {
         super.onDestroy();
         mPreviewTimer.cancel();
     }
-
-    @Override
-    public View getContentView() {
-        return getLayoutInflater().inflate(R.layout.clip_capture,null);
-    }
-
 
     @Override
     public int getVoiceMenuId() {

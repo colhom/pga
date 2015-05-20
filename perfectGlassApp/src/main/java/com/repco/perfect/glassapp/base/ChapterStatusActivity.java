@@ -21,66 +21,35 @@ import com.repco.perfect.glassapp.R;
 public abstract class ChapterStatusActivity extends ChapterActivity{
 
     protected AudioManager am;
-    protected Slider mSlider;
-    protected Slider.GracePeriod mGraceSlider = null;
 
-    protected Slider.Indeterminate mLoading;
+    protected ImageView mBackgroundImageView,mStatusImageView;
 
-    private ImageView mStatusImageView;
-    private TextView mStatusTextView;
-    protected ImageView mBackgroundImageView;
-
-    private boolean mMenuEnabled;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().requestFeature(WindowUtils.FEATURE_VOICE_COMMANDS);
 
         am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        View cv = getContentView();
+        View cv = getLayoutInflater().inflate(R.layout.chapter_status,null);
         mStatusImageView = (ImageView) cv.findViewById(R.id.status_icon);
-        mStatusTextView = (TextView) cv.findViewById(R.id.status_text);
         mBackgroundImageView = (ImageView) cv.findViewById(R.id.background_image_view);
 
         cv = new TuggableView(this,cv);
-        mSlider = Slider.from(cv);
+
         setContentView(cv);
 
-        //StatusViews default hidden, just do showStatusViews just after super.onCreate
-        //in your child class
-        hideStatusView();
-        mLoading = mSlider.startIndeterminate();
     }
 
-    public abstract View getContentView();
-    public int getVoiceMenuId(){ return 0;};
+
+    public abstract int getVoiceMenuId();
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if(keyCode == KeyEvent.KEYCODE_DPAD_CENTER){
-            if(mMenuEnabled) {
-                am.playSoundEffect(Sounds.SELECTED);
-                openOptionsMenu();
-            }else{
-                am.playSoundEffect(Sounds.DISALLOWED);
-            }
+            am.playSoundEffect(Sounds.SELECTED);
+            openOptionsMenu();
             return true;
         }
         return super.onKeyDown(keyCode, event);
-    }
-    @Override
-    public boolean onPreparePanel(int featureId, View view, Menu menu) {
-        if(featureId == WindowUtils.FEATURE_VOICE_COMMANDS){
-            return mMenuEnabled;
-        }
-        return super.onPreparePanel(featureId, view, menu);
-    }
-
-    @Override
-    public boolean onPrepareOptionsMenu(Menu menu) {
-        if(!mMenuEnabled){
-            return false;
-        }
-        return super.onPrepareOptionsMenu(menu);
     }
 
     @Override
@@ -93,44 +62,5 @@ public abstract class ChapterStatusActivity extends ChapterActivity{
         }
         return super.onCreatePanelMenu(featureId, menu);
     }
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        finishGraceTimer();
-    }
-    @Override
-    public void onBackPressed() {
-        if(mGraceSlider == null) {
-            super.onBackPressed();
-        }else{
-            am.playSoundEffect(Sounds.DISMISSED);
-            mGraceSlider.cancel();
-        }
-    }
-    protected void finishGraceTimer(){
-        if(mGraceSlider != null){
-            mGraceSlider.cancel();
-        }
-    }
-    //If actionText is empty string, voice menu is enabled. kinda funky
-    protected void showStatusViews(String actionText, int iconID){
-        mMenuEnabled = actionText.isEmpty();
-        Drawable src = getResources().getDrawable(iconID);
-        mStatusImageView.setImageDrawable(src);
-        mStatusImageView.setVisibility(View.VISIBLE);
-        if (actionText == ""){
-            mStatusTextView.setVisibility(View.GONE);
-        }else{
-            mStatusTextView.setText(actionText);
-            mStatusTextView.setVisibility(View.VISIBLE);
-        }
 
-
-    }
-
-    protected void hideStatusView(){
-        mStatusImageView.setVisibility(View.INVISIBLE);
-        mStatusTextView.setVisibility(View.INVISIBLE);
-        mMenuEnabled = false;
-    }
 }

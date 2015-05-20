@@ -71,6 +71,30 @@
             android:immersive="true"
             android:label="@string/app_name" >
         </activity>
+        <activity
+            android:name=".ClipCaptureActivity$ClipAddSliderActivity"
+            android:enabled="true"
+            android:immersive="true"
+            android:label="@string/app_name"
+            android:theme="@style/ChapterTheme"
+            >
+        </activity>
+        <activity
+            android:name=".ClipCaptureActivity$ClipDeleteSliderActivity"
+            android:enabled="true"
+            android:immersive="true"
+            android:label="@string/app_name"
+            android:theme="@style/ChapterTheme"
+            >
+        </activity>
+        <activity
+            android:name=".ChapterUploadActivity$ChapterUploadSliderActivity"
+            android:enabled="true"
+            android:immersive="true"
+            android:label="@string/app_name"
+            android:theme="@style/ChapterTheme"
+            >
+        </activity>
         <!--
         <activity
             android:name="com.repco.perfect.glassapp.ChapterPublishActivity"

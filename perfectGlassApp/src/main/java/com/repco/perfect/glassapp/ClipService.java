@@ -285,13 +285,14 @@ public class ClipService extends Service {
                     sendStorageMessage(StorageHandler.GET_ACTIVE_CHAPTER,null,CBID_CHAPTER_PREVIEW);
                     break;
                 case CS_STOP_SERVICE:
-                    if(mSyncTask.getSyncStatus() == SyncTask.SYNC_SUCCESS) {
+/*                    if(mSyncTask.getSyncStatus() == SyncTask.SYNC_SUCCESS) {
                         ClipService.this.stopSelf();
                     }else{
                         Intent i = new Intent(ClipService.this,SyncExitActivity.class);
                         i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
                         startActivity(i);
-                    }
+                    }*/
+                    ClipService.this.stopSelf();
                     break;
                 case CS_MAYBE_STOP_SERVICE:
                     if(clipTaken){
