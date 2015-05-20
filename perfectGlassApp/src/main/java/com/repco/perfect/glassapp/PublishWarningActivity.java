@@ -25,7 +25,7 @@ public class PublishWarningActivity extends Activity {
         super.onCreate(savedInstanceState);
         CardBuilder card = new CardBuilder(this, CardBuilder.Layout.ALERT);
 
-        card.setIcon(R.drawable.ic_cloud_sad_150);
+        card.setIcon(R.drawable.ic_cloud_sad_100);
         card.setText("No WiFi connectivity");
         card.setFootnote("Tap to view connectivity status");
 
