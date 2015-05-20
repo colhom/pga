@@ -61,7 +61,7 @@ public class ClipCaptureActivity extends ChapterStatusActivity {
         protected Drawable getStatusIcon(boolean inProgress) {
             int resId;
             if(inProgress){
-                resId = R.drawable.ic_video_50;
+                resId = R.drawable.ic_delete_50;
             }else{
                 resId = R.drawable.ic_done_50;
             }
