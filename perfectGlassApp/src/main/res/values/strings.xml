@@ -18,4 +18,6 @@
     <string name="warning_text">Oops, there was an error</string>
     <string name="warning_footnote_text">Tap to see if we can fix</string>
 
+    <!-- We put colors in here as well -->
+    <color name="black_trans_80">#CC000000</color>
 </resources>

@@ -1,5 +1,4 @@
 <resources>
-
     <style name="MenuTheme" parent="@android:style/Theme.DeviceDefault">
        <item name="android:windowBackground">@android:color/transparent</item>
        <item name="android:colorBackgroundCacheHint">@null</item>
@@ -7,7 +6,7 @@
        <item name="android:windowAnimationStyle">@null</item>
     </style>
     <style name="ChapterTheme" parent="@android:style/Theme.DeviceDefault">
-        <item name="android:windowBackground">@android:drawable/screen_background_dark_transparent</item>
+        <item name="android:windowBackground">@color/black_trans_80</item>
         <item name="android:colorBackgroundCacheHint">@null</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowAnimationStyle">@null</item>
